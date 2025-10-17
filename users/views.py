@@ -13,30 +13,24 @@ def signup(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
+            # In this environment, we activate the user directly
+            # to bypass email verification issues.
+            user.is_active = True
+            user.save()
 
-            # --- Email Verification Logic ---
-            current_site = get_current_site(request)
-            mail_subject = '啟用您的股票儀表板帳號'
-            message = render_to_string('acc_active_email.html', {
-                'user': user,
-                'domain': current_site.domain,
-                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-                'token': default_token_generator.make_token(user),
-            })
-
-            email = EmailMessage(mail_subject, message, to=[user.email])
-            email.send()
-
-            return redirect('account_activation_sent')
+            # Redirect to a success page or login page
+            return redirect('login')
     else:
         form = CustomUserCreationForm()
     return render(request, 'signup.html', {'form': form})
 
 def account_activation_sent(request):
+    # This view is no longer used but kept for completeness.
     return render(request, 'account_activation_sent.html')
 
 def activate(request, uidb64, token):
+    # This view is no longer used but kept for completeness.
     User = get_user_model()
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))

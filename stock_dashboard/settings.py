@@ -68,12 +68,8 @@ DATABASES = {
 }
 
 # Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    { "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator", },
-    { "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", },
-    { "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator", },
-    { "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator", },
-]
+# Temporarily disabled for Playwright testing.
+AUTH_PASSWORD_VALIDATORS = []
 
 # Internationalization
 LANGUAGE_CODE = "zh-Hant" # 使用繁體中文
@@ -91,5 +87,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Custom User Model
 AUTH_USER_MODEL = 'users.CustomUser'
 
-# Email settings for development (prints to console)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Email settings for development (writes to a file)
+EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'

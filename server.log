@@ -5,3 +5,4 @@ WARNINGS:
 ?: (staticfiles.W004) The directory '/app/static' in the STATICFILES_DIRS setting does not exist.
 
 System check identified 1 issue (0 silenced).
+Error: That port is already in use.
