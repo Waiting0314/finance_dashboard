@@ -1,0 +1,5 @@
+Django>=5.0,<6.0
+yfinance
+influxdb-client
+django-background-tasks
+requests

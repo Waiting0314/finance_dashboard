@@ -1,0 +1,4 @@
+System check identified some issues:
+
+WARNINGS:
+?: (staticfiles.W004) The directory '/app/static' in the STATICFILES_DIRS setting does not exist.

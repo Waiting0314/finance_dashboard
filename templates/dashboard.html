@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}儀表板 - 股票分析平台{% endblock %}
+
+{% block content %}
+<h2>儀表板</h2>
+<p>歡迎, {{ user.username }}!</p>
+
+{% if messages %}
+    <ul class="messages">
+    {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}
+
+<hr>
+
+<h3>新增股票到追蹤清單</h3>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="ticker" placeholder="輸入股票代號 (e.g., 2330.TW)" required>
+    <button type="submit">新增</button>
+</form>
+
+<hr>
+
+<h3>我的追蹤清單</h3>
+{% if watchlist %}
+    <table>
+        <thead>
+            <tr>
+                <th>股票代號</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in watchlist %}
+            <tr>
+                <td><a href="#" class="stock-ticker" data-ticker="{{ item.stock.ticker }}">{{ item.stock.ticker }}</a></td>
+                <td><a href="{% url 'remove_from_watchlist' item.stock.id %}">移除</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>您的追蹤清單是空的。請使用上面的表單新增股票。</p>
+{% endif %}
+
+<hr>
+
+<h3>股價圖表</h3>
+<div id="chart-container" style="width: 100%; height: 500px;"></div>
+
+<!-- Include ECharts from a CDN -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const stockData = JSON.parse('{{ stock_data_json|safe }}');
+        const chartDom = document.getElementById('chart-container');
+        const myChart = echarts.init(chartDom);
+
+        function calculateMA(dayCount, data) {
+            var result = [];
+            for (var i = 0, len = data.length; i < len; i++) {
+                if (i < dayCount) {
+                    result.push('-');
+                    continue;
+                }
+                var sum = 0;
+                for (var j = 0; j < dayCount; j++) {
+                    sum += data[i - j][1]; // Closing price
+                }
+                result.push((sum / dayCount).toFixed(2));
+            }
+            return result;
+        }
+
+        function renderChart(ticker) {
+            const rawData = stockData[ticker];
+            if (!rawData) {
+                chartDom.innerHTML = `<p>請點擊上方列表中的股票代號以顯示圖表。</p>`;
+                return;
+            }
+
+            const dates = rawData.map(item => item.date);
+            const data = rawData.map(item => [item.open, item.close, item.low, item.high]);
+
+            const option = {
+                title: { text: `${ticker} K線圖` },
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                legend: { data: ['K線', 'MA5', 'MA10', 'MA20'] },
+                grid: { left: '10%', right: '10%', bottom: '15%' },
+                xAxis: { type: 'category', data: dates },
+                yAxis: { scale: true },
+                dataZoom: [{ type: 'inside' }, { show: true }],
+                series: [
+                    {
+                        name: 'K線',
+                        type: 'candlestick',
+                        data: data
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: calculateMA(5, data),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    },
+                    {
+                        name: 'MA10',
+                        type: 'line',
+                        data: calculateMA(10, data),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: calculateMA(20, data),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    }
+                ]
+            };
+            myChart.setOption(option);
+        }
+
+        // Initial render (if there's any stock)
+        const firstTicker = Object.keys(stockData)[0];
+        if (firstTicker) {
+            renderChart(firstTicker);
+        } else {
+            renderChart(null);
+        }
+
+        // Add click listeners to stock tickers
+        document.querySelectorAll('.stock-ticker').forEach(tickerLink => {
+            tickerLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                const ticker = this.getAttribute('data-ticker');
+                renderChart(ticker);
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,7 @@
+Watching for file changes with StatReloader
+System check identified some issues:
+
+WARNINGS:
+?: (staticfiles.W004) The directory '/app/static' in the STATICFILES_DIRS setting does not exist.
+
+System check identified 1 issue (0 silenced).

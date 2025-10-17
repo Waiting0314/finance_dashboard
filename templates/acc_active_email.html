@@ -1,0 +1,9 @@
+你好 {{ user.username }},
+
+歡迎加入股票分析平台！請點擊以下連結以啟用您的帳號：
+
+http://{{ domain }}{% url 'activate' uidb64=uid token=token %}
+
+如果您沒有註冊本站，請忽略此郵件。
+
+謝謝！

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block title %}首頁 - 股票分析平台{% endblock %}
+
+{% block content %}
+  <h2>歡迎來到股票分析平台</h2>
+  {% if user.is_authenticated %}
+    <p>您已成功登入。請從上方導覽列開始操作。</p>
+    {# 未來這裡會顯示股票總覽儀表板 #}
+  {% else %}
+    <p>請先 <a href="{% url 'login' %}">登入</a> 或 <a href="{% url 'signup' %}">註冊</a> 以開始使用。</p>
+  {% endif %}
+{% endblock %}
