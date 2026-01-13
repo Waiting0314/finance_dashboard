@@ -8,82 +8,83 @@
 *   **個人化儀表板**: 使用者登入後，可以看到專屬的儀表板。
 *   **股票追蹤清單**: 使用者可以新增或移除股票到自己的追蹤清單。
 *   **互動式圖表**: 使用 [ECharts](https://echarts.apache.org/) 繪製 K 線圖，並包含 MA5, MA10, MA20 等技術指標。
-*   **背景任務**: 使用 `django-background-tasks` 建立了一個用於抓取股價資料的背景任務框架。
-
-**注意**: 由於開發環境的限制，前端圖表目前使用動態產生的**假資料**進行展示，而股價抓取功能僅完成程式碼開發，未在整合環境中進行完整驗證。
+*   **背景任務**: 使用 `django-background-tasks` 抓取 Yahoo Finance 真實股價資料。
 
 ## 技術棧
 
 *   **後端**: Django
-*   **資料庫**: SQLite
+*   **資料庫**: PostgreSQL (Docker 環境) / SQLite (本地開發)
 *   **前端圖表**: ECharts
 *   **背景任務**: `django-background-tasks`
-*   **股價資料來源 (開發中)**: `yfinance`
+*   **股價資料來源**: `yfinance`
 
-## 安裝與啟動步驟
+## 使用 Docker 快速部署 (推薦)
+
+本專案支援使用 Docker Compose 進行一鍵部署，包含 Django Web 服務、PostgreSQL 資料庫以及背景任務處理器。
+
+### 1. 啟動服務
+
+在專案根目錄下執行：
+
+```bash
+docker compose up --build
+```
+
+這將會啟動三個容器：
+1. `db`: PostgreSQL 資料庫 (port 5432)
+2. `web`: Django 應用程式 (port 8000)
+3. `worker`: 背景任務處理器
+
+### 2. 初始化資料庫
+
+首次啟動時，需要進行資料庫遷移：
+
+```bash
+docker compose exec web python manage.py migrate
+```
+
+### 3. 建立管理者帳號 (可選)
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### 4. 訪問網站
+
+開啟瀏覽器，訪問 `http://127.0.0.1:8000/`。
+
+---
+
+## 本地開發 (不使用 Docker)
 
 ### 1. 環境設定
 
-建議使用 Python 虛擬環境。
-
 ```bash
-# 建立虛擬環境
 python -m venv venv
-
-# 啟用虛擬環境 (macOS / Linux)
-source venv/bin/activate
-
-# 啟用虛擬環境 (Windows)
-# venv\Scripts\activate
-```
-
-### 2. 安裝依賴套件
-
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. 初始化資料庫
-
-這將會建立一個名為 `db.sqlite3` 的資料庫檔案，並建立所有需要的資料表。
+### 2. 初始化資料庫
 
 ```bash
 python manage.py migrate
 ```
 
-### 4. 建立管理者帳號 (可選)
+### 3. 啟動服務
 
-您可以建立一個超級使用者，以便登入後台管理介面。
+需分別啟動 Web 伺服器與任務處理器：
 
-```bash
-python manage.py createsuperuser
-```
-
-### 5. 啟動服務
-
-您需要啟動兩個服務：Django 開發伺服器和背景任務處理器。請分別在兩個不同的終端機 (Terminal) 中執行以下指令。
-
-**終端機 1: 啟動 Django 網站伺服器**
-
+**終端機 1:**
 ```bash
 python manage.py runserver
 ```
 
-網站將會在 `http://127.0.0.1:8000/` 上運行。
-
-**終端機 2: 啟動背景任務處理器**
-
-這個服務負責執行如抓取股價等耗時的背景任務。
-
+**終端機 2:**
 ```bash
 python manage.py process_tasks
 ```
 
-### 6. 使用方式
+## 驗證檔案
 
-1.  開啟瀏覽器，訪問 `http://127.0.0.1:8000/`。
-2.  註冊一個新帳號。
-3.  檢查您執行 `runserver` 的終端機，您會看到一封模擬的啟用信件內容，其中包含一個啟用連結。
-4.  複製並在瀏覽器中訪問該啟用連結，以啟用您的帳號。
-5.  使用您剛才註冊的帳號登入。
-6.  在儀表板中，嘗試新增一筆股票代號 (例如 `2330.TW` 或 `AAPL`) 到您的追蹤清單，您將會看到圖表出現。
+專案根目錄下包含 `verification_dashboard.html`，這是透過程式自動生成的儀表板 HTML 範例，可用於驗證前端 ECharts 資料引用是否正確。

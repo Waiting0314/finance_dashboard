@@ -1,9 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Stock, Watchlist
-import random
-from datetime import date, timedelta
+from .models import Stock, Watchlist, StockPrice
+from .tasks import fetch_stock_data
 import json
 
 @login_required
@@ -14,9 +13,14 @@ def dashboard(request):
             try:
                 stock, created = Stock.objects.get_or_create(ticker=ticker)
                 if created:
-                    # In a real scenario, you'd trigger the background task here.
-                    # fetch_stock_data.delay(ticker)
+                    # Trigger the background task to fetch data
+                    fetch_stock_data(ticker)
                     messages.info(request, f'股票 {ticker} 不在我們的資料庫中，已將其加入並排程抓取資料。')
+
+                # Check if we need to refresh data anyway (e.g. if it's old)
+                # For MVP, we might rely on periodic tasks or just trigger on add
+                if not created and not stock.prices.exists():
+                     fetch_stock_data(ticker)
 
                 Watchlist.objects.get_or_create(user=request.user, stock=stock)
                 messages.success(request, f'已將 {ticker} 加入您的追蹤清單。')
@@ -28,29 +32,24 @@ def dashboard(request):
 
     user_watchlist = Watchlist.objects.filter(user=request.user)
 
-    # --- DUMMY DATA GENERATION ---
+    # --- REAL DATA FETCHING ---
     stock_data_for_chart = {}
     for item in user_watchlist:
-        # Generate fake price data for the last 365 days
-        prices = []
-        current_price = random.uniform(50, 700)
-        for i in range(365):
-            current_date = date.today() - timedelta(days=i)
-            open_price = round(current_price, 2)
-            high_price = round(open_price * random.uniform(1.0, 1.05), 2)
-            low_price = round(open_price * random.uniform(0.95, 1.0), 2)
-            close_price = round(random.uniform(low_price, high_price), 2)
-            prices.append({
-                'date': current_date.strftime('%Y-%m-%d'),
-                'open': open_price,
-                'high': high_price,
-                'low': low_price,
-                'close': close_price,
-            })
-            current_price = close_price * random.uniform(0.98, 1.02)
+        # Fetch prices from DB
+        prices_qs = StockPrice.objects.filter(stock=item.stock).order_by('date')
 
-        # Reverse the list so it's in chronological order for the chart
-        stock_data_for_chart[item.stock.ticker] = prices[::-1]
+        prices_list = []
+        for price in prices_qs:
+            prices_list.append({
+                'date': price.date.strftime('%Y-%m-%d'),
+                'open': float(price.open),
+                'high': float(price.high),
+                'low': float(price.low),
+                'close': float(price.close),
+            })
+
+        if prices_list:
+             stock_data_for_chart[item.stock.ticker] = prices_list
 
     context = {
         'watchlist': user_watchlist,

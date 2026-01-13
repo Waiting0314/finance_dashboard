@@ -3,3 +3,7 @@ yfinance
 influxdb-client
 django-background-tasks
 requests
+gunicorn
+whitenoise
+psycopg2-binary
+dj-database-url

@@ -21,6 +21,13 @@ def fetch_stock_data(ticker):
             print(f"No data found for {ticker}. It might be delisted or an invalid ticker.")
             return
 
+        # Handle MultiIndex columns (common in newer yfinance versions)
+        # Structure is usually (Price, Ticker) e.g. ('Open', 'AAPL')
+        if isinstance(stock_data.columns, pd.MultiIndex):
+            if stock_data.columns.nlevels == 2:
+                # Drop the Ticker level to flatten to ('Open', 'High', etc.)
+                stock_data.columns = stock_data.columns.droplevel(1)
+
         # Iterate over the downloaded data and save it
         for index, row in stock_data.iterrows():
             if isinstance(index, pd.Timestamp):
@@ -29,11 +36,11 @@ def fetch_stock_data(ticker):
                     stock=stock_obj,
                     date=date,
                     defaults={
-                        'open': row['Open'],
-                        'high': row['High'],
-                        'low': row['Low'],
-                        'close': row['Close'],
-                        'volume': row['Volume']
+                        'open': float(row['Open']),
+                        'high': float(row['High']),
+                        'low': float(row['Low']),
+                        'close': float(row['Close']),
+                        'volume': int(row['Volume'])
                     }
                 )
         print(f"Successfully updated data for {ticker}")
