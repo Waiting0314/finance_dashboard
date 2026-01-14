@@ -26,7 +26,7 @@ def dashboard(request):
 
         return redirect('dashboard')
 
-    user_watchlist = Watchlist.objects.filter(user=request.user)
+    user_watchlist = Watchlist.objects.filter(user=request.user).select_related('stock')
 
     # --- DUMMY DATA GENERATION ---
     stock_data_for_chart = {}
