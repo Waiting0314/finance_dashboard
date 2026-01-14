@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ stock.ticker }} - 詳細資訊{% endblock %}
+
+{% block content %}
+<div class="stock-detail-container">
+    <!-- Top Section: Header & Price Card -->
+    <div class="detail-header">
+        <div class="stock-title">
+            <h2>{{ stock.name }} <span class="ticker-badge">{{ stock.ticker }}</span></h2>
+            <div class="market-badge">{{ stock.get_market_display }}</div>
+        </div>
+
+        <div class="price-card">
+            {% if latest_price %}
+                <div class="current-price">{{ latest_price.close }}</div>
+                <div class="price-meta">
+                    <span class="date">資料日期: {{ latest_price.date }}</span>
+                    <span class="volume">成交量: {{ latest_price.volume }}</span>
+                </div>
+            {% else %}
+                <div class="no-data">尚無股價資料</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Section: Chart & Info -->
+    <div class="main-grid">
+        <!-- Left Column: Chart -->
+        <div class="chart-section">
+            <div id="main-chart" style="width: 100%; height: 400px;"></div>
+        </div>
+
+        <!-- Right Column: Info & Metrics -->
+        <div class="info-section">
+            <div class="info-box">
+                <h3>公司簡介</h3>
+                <p class="description">{{ stock.description|default:"暫無簡介"|linebreaks }}</p>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <label>產業類別</label>
+                    <div class="value">{{ stock.sector|default:"-" }}</div>
+                </div>
+                <div class="metric-item">
+                    <label>本益比 (P/E)</label>
+                    <div class="value">{{ stock.pe_ratio|default:"-" }}</div>
+                </div>
+                <div class="metric-item">
+                    <label>每股盈餘 (EPS)</label>
+                    <div class="value">{{ stock.eps|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'dashboard' %}" class="back-link">&larr; 返回儀表板</a>
+    </div>
+</div>
+
+<!-- ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rawData = JSON.parse('{{ stock_data_json|safe }}');
+        const chartDom = document.getElementById('main-chart');
+
+        if (rawData && rawData.length > 0) {
+            const myChart = echarts.init(chartDom);
+
+            const dates = rawData.map(item => item.date);
+            const ohlc = rawData.map(item => [item.open, item.close, item.low, item.high]);
+
+            // Calculate MA
+            function calculateMA(dayCount, data) {
+                var result = [];
+                for (var i = 0, len = data.length; i < len; i++) {
+                    if (i < dayCount) {
+                        result.push('-');
+                        continue;
+                    }
+                    var sum = 0;
+                    for (var j = 0; j < dayCount; j++) {
+                        sum += data[i - j].close;
+                    }
+                    result.push((sum / dayCount).toFixed(2));
+                }
+                return result;
+            }
+
+            const option = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                legend: { data: ['K線', 'MA5', 'MA20'] },
+                grid: { left: '10%', right: '10%', bottom: '15%' },
+                xAxis: { type: 'category', data: dates },
+                yAxis: { scale: true },
+                dataZoom: [{ type: 'inside' }, { show: true }],
+                series: [
+                    {
+                        name: 'K線',
+                        type: 'candlestick',
+                        data: ohlc
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: calculateMA(5, rawData),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: calculateMA(20, rawData),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    }
+                ]
+            };
+            myChart.setOption(option);
+
+            // Responsive resize
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        } else {
+            chartDom.innerHTML = '<p style="text-align:center; padding-top: 150px; color:#999;">暫無歷史股價資料</p>';
+        }
+    });
+</script>
+
+<style>
+    .stock-detail-container {
+        padding: 20px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+    .stock-title h2 { margin: 0; display: flex; align-items: center; gap: 10px; }
+    .ticker-badge { font-size: 0.6em; background: #e0e0e0; padding: 2px 8px; border-radius: 12px; color: #555; }
+    .market-badge { margin-top: 5px; color: #777; font-weight: bold; }
+
+    .price-card { text-align: right; }
+    .current-price { font-size: 2em; font-weight: bold; color: #28a745; }
+    .price-meta { color: #888; font-size: 0.9em; display: flex; gap: 15px; }
+
+    /* Responsive Grid */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr; /* Chart takes 2/3, Info takes 1/3 */
+        gap: 30px;
+    }
+
+    .info-section {
+        background: #fcfcfc;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #eee;
+    }
+
+    .description { color: #555; font-size: 0.95em; line-height: 1.6; max-height: 200px; overflow-y: auto; }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 20px;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+    }
+    .metric-item label { display: block; color: #999; font-size: 0.8em; margin-bottom: 3px; }
+    .metric-item .value { font-size: 1.1em; font-weight: 500; }
+
+    .back-link {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #f4f4f4;
+        color: #333;
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+    .back-link:hover { background: #e0e0e0; }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .main-grid { grid-template-columns: 1fr; }
+        .detail-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+        .price-card { text-align: left; }
+    }
+</style>
+{% endblock %}

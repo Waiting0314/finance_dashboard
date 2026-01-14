@@ -3,7 +3,14 @@
 {% block title %}儀表板 - 股票分析平台{% endblock %}
 
 {% block content %}
-<h2>儀表板</h2>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2>儀表板</h2>
+    <div class="view-toggle">
+        <button id="listViewBtn" class="active">列表模式</button>
+        <button id="cardViewBtn">卡片模式</button>
+    </div>
+</div>
+
 <p>歡迎, {{ user.username }}!</p>
 
 {% if messages %}
@@ -17,132 +24,185 @@
 <hr>
 
 <h3>新增股票到追蹤清單</h3>
-<form method="post">
+<form method="post" style="display: flex; gap: 10px; align-items: center; background: #f9f9f9; padding: 15px; border-radius: 5px;">
     {% csrf_token %}
-    <input type="text" name="ticker" placeholder="輸入股票代號 (e.g., 2330.TW)" required>
+    <select name="market" style="padding: 8px;">
+        <option value="US">美股 (US)</option>
+        <option value="TW">台股 (TW)</option>
+    </select>
+    <input type="text" name="ticker" placeholder="輸入股票代號 (e.g., 2330, AAPL)" required style="padding: 8px; flex: 1;">
     <button type="submit">新增</button>
 </form>
 
 <hr>
 
 <h3>我的追蹤清單</h3>
+
 {% if watchlist %}
-    <table>
-        <thead>
-            <tr>
-                <th>股票代號</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
+    <!-- List View -->
+    <div id="listView">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="text-align: left; background: #eee;">
+                    <th style="padding: 10px;">股票代號</th>
+                    <th style="padding: 10px;">名稱</th>
+                    <th style="padding: 10px;">市場</th>
+                    <th style="padding: 10px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in watchlist %}
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 10px;">
+                        <a href="{% url 'stock_detail' item.stock.ticker %}" style="font-weight: bold; color: #007bff;">
+                            {{ item.stock.ticker }}
+                        </a>
+                    </td>
+                    <td style="padding: 10px;">{{ item.stock.name }}</td>
+                    <td style="padding: 10px;">{{ item.stock.get_market_display }}</td>
+                    <td style="padding: 10px;">
+                        <a href="{% url 'remove_from_watchlist' item.stock.id %}" style="color: red; font-size: 0.9em;">移除</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Card View (Hidden by default) -->
+    <div id="cardView" style="display: none; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
         {% for item in watchlist %}
-            <tr>
-                <td><a href="#" class="stock-ticker" data-ticker="{{ item.stock.ticker }}">{{ item.stock.ticker }}</a></td>
-                <td><a href="{% url 'remove_from_watchlist' item.stock.id %}">移除</a></td>
-            </tr>
+            <div class="stock-card" style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: transform 0.2s;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h4 style="margin: 0;">
+                            <a href="{% url 'stock_detail' item.stock.ticker %}" style="text-decoration: none; color: #333;">
+                                {{ item.stock.ticker }}
+                            </a>
+                        </h4>
+                        <small style="color: #666;">{{ item.stock.name }}</small>
+                    </div>
+                    <span style="background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;">{{ item.stock.get_market_display }}</span>
+                </div>
+
+                <div style="margin-top: 15px; height: 100px;" id="mini-chart-{{ item.stock.ticker|cut:'.' }}"></div>
+
+                <div style="margin-top: 10px; text-align: right;">
+                    <a href="{% url 'remove_from_watchlist' item.stock.id %}" style="color: red; font-size: 0.8em; text-decoration: none;">移除</a>
+                </div>
+            </div>
         {% endfor %}
-        </tbody>
-    </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" style="margin-top: 20px; text-align: center;">
+        <span class="step-links">
+            {% if watchlist.has_previous %}
+                <a href="?page=1">&laquo; 第一頁</a>
+                <a href="?page={{ watchlist.previous_page_number }}">上一頁</a>
+            {% endif %}
+
+            <span class="current">
+                頁次 {{ watchlist.number }} / {{ watchlist.paginator.num_pages }}
+            </span>
+
+            {% if watchlist.has_next %}
+                <a href="?page={{ watchlist.next_page_number }}">下一頁</a>
+                <a href="?page={{ watchlist.paginator.num_pages }}">最後一頁 &raquo;</a>
+            {% endif %}
+        </span>
+    </div>
+
 {% else %}
     <p>您的追蹤清單是空的。請使用上面的表單新增股票。</p>
 {% endif %}
 
-<hr>
-
-<h3>股價圖表</h3>
-<div id="chart-container" style="width: 100%; height: 500px;"></div>
-
-<!-- Include ECharts from a CDN -->
+<!-- Include ECharts -->
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const stockData = JSON.parse('{{ stock_data_json|safe }}');
-        const chartDom = document.getElementById('chart-container');
-        const myChart = echarts.init(chartDom);
 
-        function calculateMA(dayCount, data) {
-            var result = [];
-            for (var i = 0, len = data.length; i < len; i++) {
-                if (i < dayCount) {
-                    result.push('-');
-                    continue;
+        // View Toggle Logic
+        const listViewBtn = document.getElementById('listViewBtn');
+        const cardViewBtn = document.getElementById('cardViewBtn');
+        const listView = document.getElementById('listView');
+        const cardView = document.getElementById('cardView');
+
+        listViewBtn.addEventListener('click', function() {
+            listView.style.display = 'block';
+            cardView.style.display = 'none';
+            listViewBtn.classList.add('active');
+            cardViewBtn.classList.remove('active');
+        });
+
+        cardViewBtn.addEventListener('click', function() {
+            listView.style.display = 'none';
+            cardView.style.display = 'grid';
+            cardViewBtn.classList.add('active');
+            listViewBtn.classList.remove('active');
+
+            // Resize charts when switching to card view
+            document.querySelectorAll('.stock-card').forEach(card => {
+                const chartDiv = card.querySelector('div[id^="mini-chart-"]');
+                if(chartDiv) {
+                    const instance = echarts.getInstanceByDom(chartDiv);
+                    if(instance) instance.resize();
                 }
-                var sum = 0;
-                for (var j = 0; j < dayCount; j++) {
-                    sum += data[i - j][1]; // Closing price
-                }
-                result.push((sum / dayCount).toFixed(2));
-            }
-            return result;
-        }
-
-        function renderChart(ticker) {
-            const rawData = stockData[ticker];
-            if (!rawData) {
-                chartDom.innerHTML = `<p>請點擊上方列表中的股票代號以顯示圖表。</p>`;
-                return;
-            }
-
-            const dates = rawData.map(item => item.date);
-            const data = rawData.map(item => [item.open, item.close, item.low, item.high]);
-
-            const option = {
-                title: { text: `${ticker} K線圖` },
-                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-                legend: { data: ['K線', 'MA5', 'MA10', 'MA20'] },
-                grid: { left: '10%', right: '10%', bottom: '15%' },
-                xAxis: { type: 'category', data: dates },
-                yAxis: { scale: true },
-                dataZoom: [{ type: 'inside' }, { show: true }],
-                series: [
-                    {
-                        name: 'K線',
-                        type: 'candlestick',
-                        data: data
-                    },
-                    {
-                        name: 'MA5',
-                        type: 'line',
-                        data: calculateMA(5, data),
-                        smooth: true,
-                        lineStyle: { opacity: 0.5 }
-                    },
-                    {
-                        name: 'MA10',
-                        type: 'line',
-                        data: calculateMA(10, data),
-                        smooth: true,
-                        lineStyle: { opacity: 0.5 }
-                    },
-                    {
-                        name: 'MA20',
-                        type: 'line',
-                        data: calculateMA(20, data),
-                        smooth: true,
-                        lineStyle: { opacity: 0.5 }
-                    }
-                ]
-            };
-            myChart.setOption(option);
-        }
-
-        // Initial render (if there's any stock)
-        const firstTicker = Object.keys(stockData)[0];
-        if (firstTicker) {
-            renderChart(firstTicker);
-        } else {
-            renderChart(null);
-        }
-
-        // Add click listeners to stock tickers
-        document.querySelectorAll('.stock-ticker').forEach(tickerLink => {
-            tickerLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                const ticker = this.getAttribute('data-ticker');
-                renderChart(ticker);
             });
         });
+
+        // Render Mini Charts for Cards
+        {% for item in watchlist %}
+            (function(){
+                const ticker = "{{ item.stock.ticker }}";
+                const chartId = "mini-chart-{{ item.stock.ticker|cut:'.' }}";
+                const dom = document.getElementById(chartId);
+
+                if (dom && stockData[ticker]) {
+                    const myChart = echarts.init(dom);
+                    const data = stockData[ticker];
+                    const dates = data.map(i => i.date);
+                    const values = data.map(i => i.close); // Simple line chart of close price
+
+                    const option = {
+                        grid: { top: 5, bottom: 5, left: 5, right: 5 },
+                        xAxis: { type: 'category', data: dates, show: false },
+                        yAxis: { type: 'value', show: false, scale: true },
+                        series: [{
+                            data: values,
+                            type: 'line',
+                            smooth: true,
+                            showSymbol: false,
+                            areaStyle: { opacity: 0.1 },
+                            lineStyle: { width: 1 }
+                        }]
+                    };
+                    myChart.setOption(option);
+                }
+            })();
+        {% endfor %}
     });
 </script>
+
+<style>
+    .view-toggle button {
+        padding: 5px 10px;
+        border: 1px solid #ccc;
+        background: #f4f4f4;
+        cursor: pointer;
+    }
+    .view-toggle button.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .view-toggle button:first-child {
+        border-radius: 4px 0 0 4px;
+    }
+    .view-toggle button:last-child {
+        border-radius: 0 4px 4px 0;
+    }
+</style>
 {% endblock %}

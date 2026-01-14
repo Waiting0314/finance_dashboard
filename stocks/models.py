@@ -1,8 +1,17 @@
 from django.db import models
 
 class Stock(models.Model):
-    ticker = models.CharField(max_length=10, unique=True, help_text="股票代號，例如：2330.TW")
-    name = models.CharField(max_length=50, blank=True, help_text="公司名稱")
+    MARKET_CHOICES = [
+        ('US', '美股'),
+        ('TW', '台股'),
+    ]
+    ticker = models.CharField(max_length=15, unique=True, help_text="股票代號，例如：2330.TW")
+    name = models.CharField(max_length=100, blank=True, help_text="公司名稱")
+    market = models.CharField(max_length=2, choices=MARKET_CHOICES, default='US', help_text="市場別")
+    description = models.TextField(blank=True, help_text="公司簡介")
+    sector = models.CharField(max_length=50, blank=True, help_text="產業類別")
+    pe_ratio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="本益比")
+    eps = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="每股盈餘")
 
     def __str__(self):
         return f"{self.name} ({self.ticker})"
