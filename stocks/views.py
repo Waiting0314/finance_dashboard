@@ -116,6 +116,9 @@ def stock_detail(request, ticker):
             'close': float(price.close),
         })
 
+    # Recent Trading Activity (Last 5 days, reversed for table)
+    recent_prices = prices_qs.order_by('-date')[:5]
+
     # Fetch News Live (MVP)
     news_items = []
     try:
@@ -138,6 +141,7 @@ def stock_detail(request, ticker):
     context = {
         'stock': stock,
         'latest_price': latest_price,
+        'recent_prices': recent_prices,
         'stock_data_json': json.dumps(prices_list),
         'news_items': news_items
     }

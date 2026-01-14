@@ -26,10 +26,11 @@
 
         /* Navbar */
         nav {
-            background-color: var(--primary-color);
+            background-color: white;
             padding: 15px 20px;
-            color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            color: var(--primary-color);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eee;
         }
         .nav-content {
             max-width: 1000px;
@@ -40,12 +41,12 @@
         }
         nav a {
             text-decoration: none;
-            color: rgba(255,255,255,0.9);
-            font-weight: 500;
+            color: var(--primary-color);
+            font-weight: 600;
             margin-right: 20px;
         }
-        nav a:hover { color: white; text-decoration: underline; }
-        .user-info { font-size: 0.9em; }
+        nav a:hover { color: var(--secondary-color); text-decoration: none; }
+        .user-info { font-size: 0.9em; font-weight: 500; }
 
         /* Main Container */
         .container {
@@ -65,8 +66,8 @@
             border-radius: var(--border-radius);
         }
         button {
-            background-color: var(--secondary-color);
-            color: white;
+            background-color: #e3f2fd; /* Light Blue Background */
+            color: var(--primary-color); /* Dark Blue Text */
             padding: 10px 20px;
             border: none;
             border-radius: var(--border-radius);
@@ -74,7 +75,7 @@
             font-weight: 600;
             transition: background 0.2s;
         }
-        button:hover { background-color: #004494; }
+        button:hover { background-color: #d0ebff; }
 
         hr { border: 0; border-top: 1px solid #e0e0e0; margin: 30px 0; }
 
@@ -95,11 +96,11 @@
                 {% if user.is_authenticated %}
                     <span class="user-info">
                         你好, {{ user.username }}
-                        <a href="{% url 'logout' %}" style="margin-left: 10px; font-size: 0.9em; border: 1px solid rgba(255,255,255,0.3); padding: 3px 8px; border-radius: 4px;">登出</a>
+                        <a href="{% url 'logout' %}" style="margin-left: 10px; font-size: 0.9em; border: 1px solid #ddd; padding: 3px 8px; border-radius: 4px; color: #666;">登出</a>
                     </span>
                 {% else %}
                     <a href="{% url 'login' %}">登入</a>
-                    <a href="{% url 'signup' %}" style="background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 4px;">註冊</a>
+                    <a href="{% url 'signup' %}" style="background: var(--primary-color); color: white; padding: 5px 10px; border-radius: 4px;">註冊</a>
                 {% endif %}
             </div>
         </div>
