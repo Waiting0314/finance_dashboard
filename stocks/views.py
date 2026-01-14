@@ -95,6 +95,8 @@ def remove_from_watchlist(request, stock_id):
 
     return redirect('dashboard')
 
+import yfinance as yf
+
 @login_required
 def stock_detail(request, ticker):
     stock = get_object_or_404(Stock, ticker=ticker)
@@ -114,9 +116,29 @@ def stock_detail(request, ticker):
             'close': float(price.close),
         })
 
+    # Fetch News Live (MVP)
+    news_items = []
+    try:
+        yf_ticker = yf.Ticker(stock.ticker)
+        raw_news = yf_ticker.news
+        # Limit to 5 items
+        for item in raw_news[:5]:
+            # Handle nested 'content' structure or flat structure
+            data = item.get('content', item)
+
+            news_items.append({
+                'title': data.get('title'),
+                'summary': data.get('summary') or data.get('description', ''),
+                'link': data.get('clickThroughUrl') or data.get('canonicalUrl') or data.get('link'),
+                'publisher': data.get('provider', {}).get('displayName') if isinstance(data.get('provider'), dict) else str(data.get('provider', ''))
+            })
+    except Exception as e:
+        print(f"Error fetching news for {stock.ticker}: {e}")
+
     context = {
         'stock': stock,
         'latest_price': latest_price,
-        'stock_data_json': json.dumps(prices_list)
+        'stock_data_json': json.dumps(prices_list),
+        'news_items': news_items
     }
     return render(request, 'stock_detail.html', context)

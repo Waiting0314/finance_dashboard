@@ -57,6 +57,34 @@ def fetch_stock_data_sync(ticker):
                 stock_obj.eps = info.get('trailingEps')
                 updated = True
 
+            # New Indicators (Always update if available, or check if empty. Let's update if available to keep fresh)
+            # Actually for MVP let's just populate if missing or update.
+            # beta, market_cap, dividend_yield, roe, profit_margin, price_to_book
+
+            if info.get('beta') and stock_obj.beta != info.get('beta'):
+                 stock_obj.beta = info.get('beta')
+                 updated = True
+
+            if info.get('marketCap') and stock_obj.market_cap != info.get('marketCap'):
+                 stock_obj.market_cap = info.get('marketCap')
+                 updated = True
+
+            if info.get('dividendYield') and stock_obj.dividend_yield != info.get('dividendYield'):
+                 stock_obj.dividend_yield = info.get('dividendYield')
+                 updated = True
+
+            if info.get('returnOnEquity') and stock_obj.roe != info.get('returnOnEquity'):
+                 stock_obj.roe = info.get('returnOnEquity')
+                 updated = True
+
+            if info.get('profitMargins') and stock_obj.profit_margin != info.get('profitMargins'):
+                 stock_obj.profit_margin = info.get('profitMargins')
+                 updated = True
+
+            if info.get('priceToBook') and stock_obj.price_to_book != info.get('priceToBook'):
+                 stock_obj.price_to_book = info.get('priceToBook')
+                 updated = True
+
             if updated:
                 stock_obj.save()
                 print(f"Updated metadata for {ticker}")

@@ -3,6 +3,13 @@
 {% block title %}{{ stock.ticker }} - 詳細資訊{% endblock %}
 
 {% block content %}
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a href="{% url 'home' %}">首頁</a> &gt;
+    <a href="{% url 'dashboard' %}">儀表板</a> &gt;
+    <span>{{ stock.name }} ({{ stock.ticker }})</span>
+</div>
+
 <div class="stock-detail-container">
     <!-- Top Section: Header & Price Card -->
     <div class="detail-header">
@@ -26,32 +33,86 @@
 
     <!-- Main Section: Chart & Info -->
     <div class="main-grid">
-        <!-- Left Column: Chart -->
+        <!-- Left Column: Chart & Description -->
         <div class="chart-section">
             <div id="main-chart" style="width: 100%; height: 400px;"></div>
-        </div>
 
-        <!-- Right Column: Info & Metrics -->
-        <div class="info-section">
-            <div class="info-box">
+             <div class="info-box" style="margin-top: 20px;">
                 <h3>公司簡介</h3>
                 <p class="description">{{ stock.description|default:"暫無簡介"|linebreaks }}</p>
             </div>
+        </div>
 
-            <div class="metrics-grid">
-                <div class="metric-item">
-                    <label>產業類別</label>
-                    <div class="value">{{ stock.sector|default:"-" }}</div>
-                </div>
-                <div class="metric-item">
-                    <label>本益比 (P/E)</label>
-                    <div class="value">{{ stock.pe_ratio|default:"-" }}</div>
-                </div>
-                <div class="metric-item">
-                    <label>每股盈餘 (EPS)</label>
-                    <div class="value">{{ stock.eps|default:"-" }}</div>
+        <!-- Right Column: Indicators & News -->
+        <div class="info-section">
+            <!-- Financial Indicators -->
+            <div class="indicators-box">
+                <h3>財務診斷指標</h3>
+                <div class="metrics-grid">
+                    <!-- Standard -->
+                    <div class="metric-item tooltip-container">
+                        <label>本益比 (P/E)</label>
+                        <div class="value">{{ stock.pe_ratio|default:"-" }}</div>
+                        <span class="tooltip-text">股價除以每股盈餘 (EPS)，用來評估股價是否昂貴。數值越低通常代表越便宜。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>每股盈餘 (EPS)</label>
+                        <div class="value">{{ stock.eps|default:"-" }}</div>
+                         <span class="tooltip-text">公司獲利能力的指標，代表每一股賺了多少錢。</span>
+                    </div>
+
+                    <!-- New Indicators -->
+                    <div class="metric-item tooltip-container">
+                        <label>貝塔值 (Beta)</label>
+                        <div class="value">{{ stock.beta|default:"-" }}</div>
+                        <span class="tooltip-text">衡量股票相對於大盤的波動風險。>1 代表波動比大盤大，<1 代表波動較小。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>市值 (Market Cap)</label>
+                        <div class="value">{{ stock.market_cap|filesizeformat }}</div> <!-- Using filesizeformat as a rough formatter or we can filter it -->
+                         <span class="tooltip-text">公司的總市場價值 (股價 x 總股數)，代表公司規模。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>殖利率 (Yield)</label>
+                        <div class="value">{{ stock.dividend_yield|default:"-" }}</div>
+                         <span class="tooltip-text">公司發放的現金股利佔股價的百分比，代表投資的現金回報率。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>ROE</label>
+                        <div class="value">{{ stock.roe|default:"-" }}</div>
+                         <span class="tooltip-text">股東權益報酬率，衡量公司運用股東資金創造獲利的效率。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>淨利率 (Margin)</label>
+                        <div class="value">{{ stock.profit_margin|default:"-" }}</div>
+                         <span class="tooltip-text">稅後淨利佔營收的比例，衡量公司的最終獲利能力。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>股價淨值比 (P/B)</label>
+                        <div class="value">{{ stock.price_to_book|default:"-" }}</div>
+                         <span class="tooltip-text">股價除以每股淨值。通常 <1 代表股價可能被低估。</span>
+                    </div>
                 </div>
             </div>
+
+            <!-- News Section -->
+            <div class="news-box" style="margin-top: 30px;">
+                <h3>相關新聞</h3>
+                {% if news_items %}
+                    <ul class="news-list">
+                    {% for news in news_items %}
+                        <li class="news-item">
+                            <a href="{{ news.link }}" target="_blank" class="news-title">{{ news.title }}</a>
+                            <div class="news-meta">{{ news.publisher }}</div>
+                            <p class="news-summary">{{ news.summary|truncatechars:100 }}</p>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-news">暫無相關新聞</p>
+                {% endif %}
+            </div>
+
         </div>
     </div>
 
@@ -132,6 +193,11 @@
 </script>
 
 <style>
+    /* Breadcrumb */
+    .breadcrumb { margin-bottom: 20px; font-size: 0.9em; color: #666; }
+    .breadcrumb a { color: #007bff; text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+
     .stock-detail-container {
         padding: 20px;
         background: #fff;
@@ -157,29 +223,79 @@
     /* Responsive Grid */
     .main-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr; /* Chart takes 2/3, Info takes 1/3 */
+        grid-template-columns: 2fr 1fr; /* Left (Chart) 2/3, Right (Info) 1/3 */
         gap: 30px;
     }
 
     .info-section {
-        background: #fcfcfc;
-        padding: 20px;
-        border-radius: 8px;
-        border: 1px solid #eee;
+        /* background: #fcfcfc; */
     }
 
     .description { color: #555; font-size: 0.95em; line-height: 1.6; max-height: 200px; overflow-y: auto; }
 
+    /* Metrics Grid & Tooltip */
     .metrics-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 15px;
-        margin-top: 20px;
+        /* margin-top: 20px;
         border-top: 1px solid #eee;
-        padding-top: 20px;
+        padding-top: 20px; */
+    }
+    .metric-item {
+        position: relative; /* For tooltip */
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 5px;
+        cursor: help; /* Indicate hover */
     }
     .metric-item label { display: block; color: #999; font-size: 0.8em; margin-bottom: 3px; }
     .metric-item .value { font-size: 1.1em; font-weight: 500; }
+
+    /* Tooltip CSS */
+    .tooltip-container .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px 10px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%; /* Position above */
+        left: 50%;
+        margin-left: -100px; /* Center */
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.8em;
+        line-height: 1.4;
+    }
+
+    .tooltip-container .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: #333 transparent transparent transparent;
+    }
+
+    .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* News List */
+    .news-list { list-style: none; padding: 0; }
+    .news-item { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .news-item:last-child { border-bottom: none; }
+    .news-title { font-weight: bold; color: #333; text-decoration: none; display: block; margin-bottom: 5px; }
+    .news-title:hover { color: #007bff; }
+    .news-meta { font-size: 0.8em; color: #888; margin-bottom: 5px; }
+    .news-summary { font-size: 0.9em; color: #666; margin: 0; line-height: 1.4; }
 
     .back-link {
         display: inline-block;

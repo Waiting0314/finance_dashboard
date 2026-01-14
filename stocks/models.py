@@ -13,6 +13,14 @@ class Stock(models.Model):
     pe_ratio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="本益比")
     eps = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="每股盈餘")
 
+    # New Financial Indicators
+    beta = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="貝塔值 (風險係數)")
+    market_cap = models.BigIntegerField(null=True, blank=True, help_text="市值")
+    dividend_yield = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, help_text="殖利率")
+    roe = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, help_text="股東權益報酬率")
+    profit_margin = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, help_text="淨利率")
+    price_to_book = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="股價淨值比")
+
     def __str__(self):
         return f"{self.name} ({self.ticker})"
 
