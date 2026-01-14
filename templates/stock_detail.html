@@ -194,82 +194,117 @@
 
 <style>
     /* Breadcrumb */
-    .breadcrumb { margin-bottom: 20px; font-size: 0.9em; color: #666; }
-    .breadcrumb a { color: #007bff; text-decoration: none; }
-    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb {
+        margin-bottom: 25px;
+        font-size: 0.95em;
+        color: #666;
+        background: white;
+        padding: 10px 15px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .breadcrumb a { color: var(--secondary-color); font-weight: 500; }
 
     .stock-detail-container {
-        padding: 20px;
+        padding: 30px;
         background: #fff;
         border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
     .detail-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         border-bottom: 2px solid #f0f0f0;
-        padding-bottom: 20px;
-        margin-bottom: 20px;
+        padding-bottom: 25px;
+        margin-bottom: 30px;
     }
-    .stock-title h2 { margin: 0; display: flex; align-items: center; gap: 10px; }
-    .ticker-badge { font-size: 0.6em; background: #e0e0e0; padding: 2px 8px; border-radius: 12px; color: #555; }
-    .market-badge { margin-top: 5px; color: #777; font-weight: bold; }
+    .stock-title h2 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 2em;
+        color: var(--primary-color);
+    }
+    .ticker-badge {
+        font-size: 0.5em;
+        background: #e9ecef;
+        padding: 4px 10px;
+        border-radius: 20px;
+        color: #495057;
+        vertical-align: middle;
+    }
+    .market-badge {
+        margin-top: 8px;
+        color: #6c757d;
+        font-weight: 600;
+        font-size: 1.1em;
+    }
 
     .price-card { text-align: right; }
-    .current-price { font-size: 2em; font-weight: bold; color: #28a745; }
-    .price-meta { color: #888; font-size: 0.9em; display: flex; gap: 15px; }
+    .current-price { font-size: 2.5em; font-weight: 800; color: #00bfa5; } /* Modern Green */
+    .price-meta { color: #888; font-size: 0.95em; display: flex; gap: 20px; justify-content: flex-end;}
 
     /* Responsive Grid */
     .main-grid {
         display: grid;
         grid-template-columns: 2fr 1fr; /* Left (Chart) 2/3, Right (Info) 1/3 */
-        gap: 30px;
+        gap: 40px;
     }
 
-    .info-section {
-        /* background: #fcfcfc; */
-    }
+    .description { color: #444; font-size: 1em; line-height: 1.7; max-height: 200px; overflow-y: auto; }
 
-    .description { color: #555; font-size: 0.95em; line-height: 1.6; max-height: 200px; overflow-y: auto; }
+    .info-box h3, .news-box h3, .indicators-box h3 {
+        color: var(--primary-color);
+        border-left: 4px solid var(--secondary-color);
+        padding-left: 10px;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+    }
 
     /* Metrics Grid & Tooltip */
     .metrics-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 15px;
-        /* margin-top: 20px;
-        border-top: 1px solid #eee;
-        padding-top: 20px; */
+        gap: 20px;
     }
     .metric-item {
-        position: relative; /* For tooltip */
-        background: #f9f9f9;
-        padding: 10px;
-        border-radius: 5px;
-        cursor: help; /* Indicate hover */
+        position: relative;
+        background: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        cursor: help;
+        border: 1px solid #eee;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
-    .metric-item label { display: block; color: #999; font-size: 0.8em; margin-bottom: 3px; }
-    .metric-item .value { font-size: 1.1em; font-weight: 500; }
+    .metric-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        border-color: #d0d7de;
+    }
+    .metric-item label { display: block; color: #888; font-size: 0.85em; margin-bottom: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
+    .metric-item .value { font-size: 1.2em; font-weight: 700; color: var(--primary-color); }
 
-    /* Tooltip CSS */
+    /* Tooltip CSS (Dark Blue Theme) */
     .tooltip-container .tooltip-text {
         visibility: hidden;
-        width: 200px;
-        background-color: #333;
+        width: 220px;
+        background-color: var(--primary-color);
         color: #fff;
-        text-align: center;
+        text-align: left;
         border-radius: 6px;
-        padding: 5px 10px;
+        padding: 10px 15px;
         position: absolute;
-        z-index: 1;
-        bottom: 125%; /* Position above */
+        z-index: 10;
+        bottom: 130%;
         left: 50%;
-        margin-left: -100px; /* Center */
+        transform: translateX(-50%);
         opacity: 0;
-        transition: opacity 0.3s;
-        font-size: 0.8em;
-        line-height: 1.4;
+        transition: opacity 0.2s;
+        font-size: 0.85em;
+        line-height: 1.5;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
 
     .tooltip-container .tooltip-text::after {
@@ -277,10 +312,10 @@
         position: absolute;
         top: 100%;
         left: 50%;
-        margin-left: -5px;
-        border-width: 5px;
+        margin-left: -6px;
+        border-width: 6px;
         border-style: solid;
-        border-color: #333 transparent transparent transparent;
+        border-color: var(--primary-color) transparent transparent transparent;
     }
 
     .tooltip-container:hover .tooltip-text {
@@ -290,29 +325,22 @@
 
     /* News List */
     .news-list { list-style: none; padding: 0; }
-    .news-item { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .news-item { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
     .news-item:last-child { border-bottom: none; }
-    .news-title { font-weight: bold; color: #333; text-decoration: none; display: block; margin-bottom: 5px; }
-    .news-title:hover { color: #007bff; }
-    .news-meta { font-size: 0.8em; color: #888; margin-bottom: 5px; }
-    .news-summary { font-size: 0.9em; color: #666; margin: 0; line-height: 1.4; }
+    .news-title { font-weight: 700; color: var(--primary-color); text-decoration: none; display: block; margin-bottom: 8px; font-size: 1.05em; line-height: 1.4;}
+    .news-title:hover { color: var(--secondary-color); }
+    .news-meta { font-size: 0.8em; color: #999; margin-bottom: 8px; text-transform: uppercase; font-weight: 600;}
+    .news-summary { font-size: 0.95em; color: #555; margin: 0; line-height: 1.6; }
 
-    .back-link {
-        display: inline-block;
-        padding: 10px 20px;
-        background: #f4f4f4;
-        color: #333;
-        text-decoration: none;
-        border-radius: 4px;
-        transition: background 0.2s;
-    }
-    .back-link:hover { background: #e0e0e0; }
+    .back-link { display: none; } /* Hidden as per request */
 
     /* Mobile Responsive */
     @media (max-width: 768px) {
-        .main-grid { grid-template-columns: 1fr; }
+        .main-grid { grid-template-columns: 1fr; gap: 30px;}
         .detail-header { flex-direction: column; align-items: flex-start; gap: 15px; }
         .price-card { text-align: left; }
+        .current-price { font-size: 2em; }
+        .price-meta { justify-content: flex-start; }
     }
 </style>
 {% endblock %}

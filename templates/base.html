@@ -5,32 +5,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}股票分析平台{% endblock %}</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; margin: 2em; background-color: #f4f4f4; color: #333; }
-        .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        nav { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
-        nav a { margin-right: 15px; text-decoration: none; color: #007bff; }
-        nav a:hover { text-decoration: underline; }
-        .user-info { float: right; }
+        :root {
+            --primary-color: #0a2540; /* Deep Corporate Blue */
+            --secondary-color: #0056b3; /* Accent Blue */
+            --bg-color: #f4f6f8; /* Light Gray Background */
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --light-text: #666;
+            --border-radius: 6px;
+            --shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        /* Navbar */
+        nav {
+            background-color: var(--primary-color);
+            padding: 15px 20px;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav-content {
+            max-width: 1000px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav a {
+            text-decoration: none;
+            color: rgba(255,255,255,0.9);
+            font-weight: 500;
+            margin-right: 20px;
+        }
+        nav a:hover { color: white; text-decoration: underline; }
+        .user-info { font-size: 0.9em; }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background: transparent;
+            padding: 0 20px;
+        }
+
+        /* Global Elements */
         form p { margin-bottom: 10px; }
-        form input { width: 100%; padding: 8px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
+        form input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+        }
+        button {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #004494; }
+
+        hr { border: 0; border-top: 1px solid #e0e0e0; margin: 30px 0; }
+
+        h2, h3 { color: var(--primary-color); }
+
+        /* Links */
+        a { color: var(--secondary-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
+    <nav>
+        <div class="nav-content">
+            <div class="nav-left">
+                <a href="{% url 'home' %}" style="font-size: 1.2em; font-weight: bold;">StockPro</a>
+            </div>
+            <div class="nav-right">
+                {% if user.is_authenticated %}
+                    <span class="user-info">
+                        你好, {{ user.username }}
+                        <a href="{% url 'logout' %}" style="margin-left: 10px; font-size: 0.9em; border: 1px solid rgba(255,255,255,0.3); padding: 3px 8px; border-radius: 4px;">登出</a>
+                    </span>
+                {% else %}
+                    <a href="{% url 'login' %}">登入</a>
+                    <a href="{% url 'signup' %}" style="background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 4px;">註冊</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
     <div class="container">
-        <nav>
-            <a href="{% url 'home' %}">首頁</a>
-            {% if user.is_authenticated %}
-                <span class="user-info">
-                    你好, {{ user.username }}!
-                    <a href="{% url 'logout' %}">登出</a>
-                </span>
-            {% else %}
-                <a href="{% url 'login' %}">登入</a>
-                <a href="{% url 'signup' %}">註冊</a>
-            {% endif %}
-        </nav>
         <main>
             {% block content %}
             {% endblock %}
