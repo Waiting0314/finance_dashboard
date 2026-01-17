@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Watchlist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .sparkline {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: draw 1s linear forwards;
+        }
+
+        @keyframes draw {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* 隱藏滾動條但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 flex h-screen overflow-hidden">
+
+    <aside class="w-20 bg-white border-r border-gray-200 flex flex-col items-center py-6 z-20 hidden md:flex">
+        <div class="h-10 w-10 bg-gray-900 rounded-xl flex items-center justify-center text-white mb-8">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+            </svg>
+        </div>
+        <nav class="flex-1 space-y-4">
+            <button class="p-3 bg-gray-100 text-gray-900 rounded-xl">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                    </path>
+                </svg>
+            </button>
+            <button class="p-3 text-gray-400 hover:bg-gray-100 rounded-xl transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header class="px-8 py-6 bg-white border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Watchlist</h1>
+                <p class="text-sm text-gray-500">即時監控面板</p>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="flex bg-gray-100 p-1 rounded-lg">
+                    <button onclick="switchView('list')" id="btn-list"
+                        class="flex items-center gap-2 px-3 py-1.5 bg-white rounded shadow-sm text-sm font-medium text-gray-800 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                        列表
+                    </button>
+                    <button onclick="switchView('grid')" id="btn-grid"
+                        class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-800 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                            </path>
+                        </svg>
+                        卡片
+                    </button>
+                </div>
+
+                <div class="h-6 w-px bg-gray-200 mx-2"></div>
+
+                <button
+                    class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Stock
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 bg-gray-50">
+
+            <div id="view-list" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/4">代號
+                                / 名稱</th>
+                            <th
+                                class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
+                                現價 (TWD)</th>
+                            <th
+                                class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
+                                漲跌幅</th>
+                            <th
+                                class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">
+                                今日走勢</th>
+                            <th
+                                class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
+                                操作</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr class="hover:bg-gray-50 transition group cursor-pointer">
+                            <td class="px-6 py-5">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center font-bold text-xs text-gray-600">
+                                        2330</div>
+                                    <div>
+                                        <div class="font-bold text-gray-900 text-base">台積電</div>
+                                        <div class="text-xs text-gray-400 mt-0.5">Taiwan Semiconductor</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <div class="font-bold text-gray-900 text-base">1,740.00</div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-emerald-50 text-emerald-600">
+                                    +2.96%
+                                </span>
+                                <div class="text-xs text-emerald-600 mt-1">+50.00</div>
+                            </td>
+                            <td class="px-6 py-5">
+                                <div class="w-32 mx-auto h-8">
+                                    <svg class="w-full h-full text-emerald-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 100 40">
+                                        <path stroke-width="2" d="M0 30 L 20 25 L 40 32 L 60 15 L 80 18 L 100 2" />
+                                    </svg>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <button
+                                    class="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition opacity-0 group-hover:opacity-100">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <tr class="hover:bg-gray-50 transition group cursor-pointer">
+                            <td class="px-6 py-5">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center font-bold text-xs text-gray-600">
+                                        2357</div>
+                                    <div>
+                                        <div class="font-bold text-gray-900 text-base">華碩電腦</div>
+                                        <div class="text-xs text-gray-400 mt-0.5">ASUSTeK Computer</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <div class="font-bold text-gray-900 text-base">510.00</div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-rose-50 text-rose-600">
+                                    -2.11%
+                                </span>
+                                <div class="text-xs text-rose-600 mt-1">-11.00</div>
+                            </td>
+                            <td class="px-6 py-5">
+                                <div class="w-32 mx-auto h-8">
+                                    <svg class="w-full h-full text-rose-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 100 40">
+                                        <path stroke-width="2" d="M0 10 L 30 15 L 50 10 L 70 25 L 100 35" />
+                                    </svg>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <button
+                                    class="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition opacity-0 group-hover:opacity-100">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <tr class="hover:bg-gray-50 transition group cursor-pointer">
+                            <td class="px-6 py-5">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center font-bold text-xs text-gray-600">
+                                        0050</div>
+                                    <div>
+                                        <div class="font-bold text-gray-900 text-base">元大台灣 50</div>
+                                        <div class="text-xs text-gray-400 mt-0.5">Yuanta/P-shares Taiwan</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <div class="font-bold text-gray-900 text-base">72.00</div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-emerald-50 text-emerald-600">
+                                    +1.91%
+                                </span>
+                                <div class="text-xs text-emerald-600 mt-1">+1.35</div>
+                            </td>
+                            <td class="px-6 py-5">
+                                <div class="w-32 mx-auto h-8">
+                                    <svg class="w-full h-full text-emerald-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 100 40">
+                                        <path stroke-width="2" d="M0 35 Q 25 35 30 20 T 60 25 T 100 5" />
+                                    </svg>
+                                </div>
+                            </td>
+                            <td class="px-6 py-5 text-right">
+                                <button
+                                    class="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition opacity-0 group-hover:opacity-100">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
+                                        </path>
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="view-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition group">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="text-xs font-bold text-gray-400">2330.TW</div>
+                        <button class="text-gray-300 hover:text-gray-600"><svg class="w-5 h-5" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z">
+                                </path>
+                            </svg></button>
+                    </div>
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-900 truncate">台積電</h3>
+                        <div class="text-3xl font-bold text-gray-900 mt-2">1,740.00</div>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div class="px-2 py-1 bg-emerald-50 text-emerald-700 text-sm font-bold rounded">+2.96%</div>
+                        <svg class="w-24 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 100 40">
+                            <path stroke-width="2" d="M0 30 L 20 25 L 40 32 L 60 15 L 80 18 L 100 2" />
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition group">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="text-xs font-bold text-gray-400">2357.TW</div>
+                        <button class="text-gray-300 hover:text-gray-600"><svg class="w-5 h-5" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z">
+                                </path>
+                            </svg></button>
+                    </div>
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-900 truncate">華碩電腦</h3>
+                        <div class="text-3xl font-bold text-gray-900 mt-2">510.00</div>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div class="px-2 py-1 bg-rose-50 text-rose-600 text-sm font-bold rounded">-2.11%</div>
+                        <svg class="w-24 h-10 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 100 40">
+                            <path stroke-width="2" d="M0 10 L 30 15 L 50 10 L 70 25 L 100 35" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        function switchView(view) {
+            const gridView = document.getElementById('view-grid');
+            const listView = document.getElementById('view-list');
+            const btnGrid = document.getElementById('btn-grid');
+            const btnList = document.getElementById('btn-list');
+
+            if (view === 'grid') {
+                gridView.classList.remove('hidden');
+                listView.classList.add('hidden');
+
+                // Style Grid Button as Active
+                btnGrid.classList.remove('text-gray-500', 'hover:text-gray-800');
+                btnGrid.classList.add('bg-white', 'shadow-sm', 'text-gray-800');
+
+                // Style List Button as Inactive
+                btnList.classList.add('text-gray-500', 'hover:text-gray-800');
+                btnList.classList.remove('bg-white', 'shadow-sm', 'text-gray-800');
+            } else {
+                gridView.classList.add('hidden');
+                listView.classList.remove('hidden');
+
+                // Style List Button as Active
+                btnList.classList.remove('text-gray-500', 'hover:text-gray-800');
+                btnList.classList.add('bg-white', 'shadow-sm', 'text-gray-800');
+
+                // Style Grid Button as Inactive
+                btnGrid.classList.add('text-gray-500', 'hover:text-gray-800');
+                btnGrid.classList.remove('bg-white', 'shadow-sm', 'text-gray-800');
+            }
+        }
+    </script>
+</body>
+
+</html>

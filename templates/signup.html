@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}註冊 - 股票分析平台{% endblock %}
+
+{% block content %}
+  <h2>註冊新帳號</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">註冊</button>
+  </form>
+{% endblock %}

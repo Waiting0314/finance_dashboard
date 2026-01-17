@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIGHT.CORP - 詳細資訊</title>
+    <style>
+        :root {
+            --primary-color: #0a2540; /* Deep Corporate Blue */
+            --secondary-color: #0056b3; /* Accent Blue */
+            --bg-color: #f4f6f8; /* Light Gray Background */
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --light-text: #666;
+            --border-radius: 6px;
+            --shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        /* Navbar */
+        nav {
+            background-color: white;
+            padding: 15px 20px;
+            color: var(--primary-color);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border-bottom: 1px solid #eee;
+        }
+        .nav-content {
+            max-width: 1000px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        nav a {
+            text-decoration: none;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-right: 20px;
+        }
+        nav a:hover { color: var(--secondary-color); text-decoration: none; }
+        .user-info { font-size: 0.9em; font-weight: 500; }
+
+        /* Main Container */
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background: transparent;
+            padding: 0 20px;
+        }
+
+        /* Global Elements */
+        form p { margin-bottom: 10px; }
+        form input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+        }
+        button {
+            background-color: #e3f2fd; /* Light Blue Background */
+            color: var(--primary-color); /* Dark Blue Text */
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #d0ebff; }
+
+        hr { border: 0; border-top: 1px solid #e0e0e0; margin: 30px 0; }
+
+        h2, h3 { color: var(--primary-color); }
+
+        /* Links */
+        a { color: var(--secondary-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-content">
+            <div class="nav-left">
+                <a href="/" style="font-size: 1.2em; font-weight: bold;">StockPro</a>
+            </div>
+            <div class="nav-right">
+
+                    <span class="user-info">
+                        你好, light_user
+                        <a href="/users/logout/" style="margin-left: 10px; font-size: 0.9em; border: 1px solid #ddd; padding: 3px 8px; border-radius: 4px; color: #666;">登出</a>
+                    </span>
+
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <main>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <a href="/">首頁</a> &gt;
+    <a href="/stocks/dashboard/">儀表板</a> &gt;
+    <span>Light Theme Inc. (LIGHT.CORP)</span>
+</div>
+
+<div class="stock-detail-container">
+    <!-- Top Section: Header & Price Card -->
+    <div class="detail-header">
+        <div class="stock-title">
+            <h2>Light Theme Inc. <span class="ticker-badge">LIGHT.CORP</span></h2>
+            <div class="market-badge">美股</div>
+        </div>
+
+        <div class="price-card">
+
+                <div class="current-price">182.00</div>
+                <div class="price-meta">
+                    <span class="date">資料日期: 2026年1月13日</span>
+                    <span class="volume">成交量: 50000</span>
+                </div>
+
+        </div>
+    </div>
+
+    <!-- Main Section: Chart & Info -->
+    <div class="main-grid">
+        <!-- Left Column: Chart & Description -->
+        <div class="chart-section">
+            <div id="main-chart" style="width: 100%; height: 400px;"></div>
+
+             <div class="info-box" style="margin-top: 20px;">
+                <h3>公司簡介</h3>
+                <p class="description"><p>A company dedicated to reducing visual pressure with calm design.</p></p>
+            </div>
+
+            <!-- Recent Trading Activity -->
+            <div class="recent-data-box" style="margin-top: 30px;">
+                <h3>近期交易明細</h3>
+                <table class="recent-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>開盤</th>
+                            <th>最高</th>
+                            <th>最低</th>
+                            <th>收盤</th>
+                            <th>成交量</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td>2026-01-13</td>
+                            <td>179.00</td>
+                            <td>184.00</td>
+                            <td>177.00</td>
+                            <td style="font-weight: bold; color: var(--primary-color);">182.00</td>
+                            <td>50000</td>
+                        </tr>
+
+                        <tr>
+                            <td>2026-01-12</td>
+                            <td>178.00</td>
+                            <td>183.00</td>
+                            <td>176.00</td>
+                            <td style="font-weight: bold; color: var(--primary-color);">181.00</td>
+                            <td>50000</td>
+                        </tr>
+
+                        <tr>
+                            <td>2026-01-11</td>
+                            <td>177.00</td>
+                            <td>182.00</td>
+                            <td>175.00</td>
+                            <td style="font-weight: bold; color: var(--primary-color);">180.00</td>
+                            <td>50000</td>
+                        </tr>
+
+                        <tr>
+                            <td>2026-01-10</td>
+                            <td>176.00</td>
+                            <td>181.00</td>
+                            <td>174.00</td>
+                            <td style="font-weight: bold; color: var(--primary-color);">179.00</td>
+                            <td>50000</td>
+                        </tr>
+
+                        <tr>
+                            <td>2026-01-09</td>
+                            <td>175.00</td>
+                            <td>180.00</td>
+                            <td>173.00</td>
+                            <td style="font-weight: bold; color: var(--primary-color);">178.00</td>
+                            <td>50000</td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Column: Indicators & News -->
+        <div class="info-section">
+            <!-- Financial Indicators -->
+            <div class="indicators-box">
+                <h3>財務診斷指標</h3>
+                <div class="metrics-grid">
+                    <!-- Standard -->
+                    <div class="metric-item tooltip-container">
+                        <label>本益比 (P/E)</label>
+                        <div class="value">18.5</div>
+                        <span class="tooltip-text">股價除以每股盈餘 (EPS)，用來評估股價是否昂貴。數值越低通常代表越便宜。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>每股盈餘 (EPS)</label>
+                        <div class="value">3.12</div>
+                         <span class="tooltip-text">公司獲利能力的指標，代表每一股賺了多少錢。</span>
+                    </div>
+
+                    <!-- New Indicators -->
+                    <div class="metric-item tooltip-container">
+                        <label>貝塔值 (Beta)</label>
+                        <div class="value">0.85</div>
+                        <span class="tooltip-text">衡量股票相對於大盤的波動風險。>1 代表波動比大盤大，<1 代表波動較小。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>市值 (Market Cap)</label>
+                        <div class="value">7.5 GB</div> <!-- Using filesizeformat as a rough formatter or we can filter it -->
+                         <span class="tooltip-text">公司的總市場價值 (股價 x 總股數)，代表公司規模。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>殖利率 (Yield)</label>
+                        <div class="value">0.031</div>
+                         <span class="tooltip-text">公司發放的現金股利佔股價的百分比，代表投資的現金回報率。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>ROE</label>
+                        <div class="value">0.2</div>
+                         <span class="tooltip-text">股東權益報酬率，衡量公司運用股東資金創造獲利的效率。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>淨利率 (Margin)</label>
+                        <div class="value">0.15</div>
+                         <span class="tooltip-text">稅後淨利佔營收的比例，衡量公司的最終獲利能力。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>股價淨值比 (P/B)</label>
+                        <div class="value">3.2</div>
+                         <span class="tooltip-text">股價除以每股淨值。通常 <1 代表股價可能被低估。</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- News Section -->
+            <div class="news-box" style="margin-top: 30px;">
+                <h3>相關新聞</h3>
+
+                    <ul class="news-list">
+
+                        <li class="news-item">
+                            <a href="#" target="_blank" class="news-title">Light Theme Inc. Reduces Eye Strain for Users</a>
+                            <div class="news-meta">UXDaily</div>
+                            <p class="news-summary">New interface update brings pastel colors and clean typography.</p>
+                        </li>
+
+                        <li class="news-item">
+                            <a href="#" target="_blank" class="news-title">Market Recap: Why Light Designs are Trending</a>
+                            <div class="news-meta">TechTrends</div>
+                            <p class="news-summary">Users prefer lower contrast interfaces for long-term usage.</p>
+                        </li>
+
+                    </ul>
+
+            </div>
+
+        </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="/stocks/dashboard/" class="back-link">&larr; 返回儀表板</a>
+    </div>
+</div>
+
+<!-- ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rawData = JSON.parse('[{"date": "2025-12-15", "open": 150.0, "high": 155.0, "low": 148.0, "close": 153.0}, {"date": "2025-12-16", "open": 151.0, "high": 156.0, "low": 149.0, "close": 154.0}, {"date": "2025-12-17", "open": 152.0, "high": 157.0, "low": 150.0, "close": 155.0}, {"date": "2025-12-18", "open": 153.0, "high": 158.0, "low": 151.0, "close": 156.0}, {"date": "2025-12-19", "open": 154.0, "high": 159.0, "low": 152.0, "close": 157.0}, {"date": "2025-12-20", "open": 155.0, "high": 160.0, "low": 153.0, "close": 158.0}, {"date": "2025-12-21", "open": 156.0, "high": 161.0, "low": 154.0, "close": 159.0}, {"date": "2025-12-22", "open": 157.0, "high": 162.0, "low": 155.0, "close": 160.0}, {"date": "2025-12-23", "open": 158.0, "high": 163.0, "low": 156.0, "close": 161.0}, {"date": "2025-12-24", "open": 159.0, "high": 164.0, "low": 157.0, "close": 162.0}, {"date": "2025-12-25", "open": 160.0, "high": 165.0, "low": 158.0, "close": 163.0}, {"date": "2025-12-26", "open": 161.0, "high": 166.0, "low": 159.0, "close": 164.0}, {"date": "2025-12-27", "open": 162.0, "high": 167.0, "low": 160.0, "close": 165.0}, {"date": "2025-12-28", "open": 163.0, "high": 168.0, "low": 161.0, "close": 166.0}, {"date": "2025-12-29", "open": 164.0, "high": 169.0, "low": 162.0, "close": 167.0}, {"date": "2025-12-30", "open": 165.0, "high": 170.0, "low": 163.0, "close": 168.0}, {"date": "2025-12-31", "open": 166.0, "high": 171.0, "low": 164.0, "close": 169.0}, {"date": "2026-01-01", "open": 167.0, "high": 172.0, "low": 165.0, "close": 170.0}, {"date": "2026-01-02", "open": 168.0, "high": 173.0, "low": 166.0, "close": 171.0}, {"date": "2026-01-03", "open": 169.0, "high": 174.0, "low": 167.0, "close": 172.0}, {"date": "2026-01-04", "open": 170.0, "high": 175.0, "low": 168.0, "close": 173.0}, {"date": "2026-01-05", "open": 171.0, "high": 176.0, "low": 169.0, "close": 174.0}, {"date": "2026-01-06", "open": 172.0, "high": 177.0, "low": 170.0, "close": 175.0}, {"date": "2026-01-07", "open": 173.0, "high": 178.0, "low": 171.0, "close": 176.0}, {"date": "2026-01-08", "open": 174.0, "high": 179.0, "low": 172.0, "close": 177.0}, {"date": "2026-01-09", "open": 175.0, "high": 180.0, "low": 173.0, "close": 178.0}, {"date": "2026-01-10", "open": 176.0, "high": 181.0, "low": 174.0, "close": 179.0}, {"date": "2026-01-11", "open": 177.0, "high": 182.0, "low": 175.0, "close": 180.0}, {"date": "2026-01-12", "open": 178.0, "high": 183.0, "low": 176.0, "close": 181.0}, {"date": "2026-01-13", "open": 179.0, "high": 184.0, "low": 177.0, "close": 182.0}]');
+        const chartDom = document.getElementById('main-chart');
+
+        if (rawData && rawData.length > 0) {
+            const myChart = echarts.init(chartDom);
+
+            const dates = rawData.map(item => item.date);
+            const ohlc = rawData.map(item => [item.open, item.close, item.low, item.high]);
+
+            // Calculate MA
+            function calculateMA(dayCount, data) {
+                var result = [];
+                for (var i = 0, len = data.length; i < len; i++) {
+                    if (i < dayCount) {
+                        result.push('-');
+                        continue;
+                    }
+                    var sum = 0;
+                    for (var j = 0; j < dayCount; j++) {
+                        sum += data[i - j].close;
+                    }
+                    result.push((sum / dayCount).toFixed(2));
+                }
+                return result;
+            }
+
+            const option = {
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                legend: { data: ['K線', 'MA5', 'MA20'] },
+                grid: { left: '10%', right: '10%', bottom: '15%' },
+                xAxis: { type: 'category', data: dates },
+                yAxis: { scale: true },
+                dataZoom: [{ type: 'inside' }, { show: true }],
+                series: [
+                    {
+                        name: 'K線',
+                        type: 'candlestick',
+                        data: ohlc
+                    },
+                    {
+                        name: 'MA5',
+                        type: 'line',
+                        data: calculateMA(5, rawData),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    },
+                    {
+                        name: 'MA20',
+                        type: 'line',
+                        data: calculateMA(20, rawData),
+                        smooth: true,
+                        lineStyle: { opacity: 0.5 }
+                    }
+                ]
+            };
+            myChart.setOption(option);
+
+            // Responsive resize
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        } else {
+            chartDom.innerHTML = '<p style="text-align:center; padding-top: 150px; color:#999;">暫無歷史股價資料</p>';
+        }
+    });
+</script>
+
+<style>
+    /* Breadcrumb */
+    .breadcrumb {
+        margin-bottom: 25px;
+        font-size: 0.95em;
+        color: #666;
+        background: white;
+        padding: 10px 15px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+    .breadcrumb a { color: var(--secondary-color); font-weight: 500; }
+
+    .stock-detail-container {
+        padding: 30px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 25px;
+        margin-bottom: 30px;
+    }
+    .stock-title h2 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 2em;
+        color: var(--primary-color);
+    }
+    .ticker-badge {
+        font-size: 0.5em;
+        background: #e9ecef;
+        padding: 4px 10px;
+        border-radius: 20px;
+        color: #495057;
+        vertical-align: middle;
+    }
+    .market-badge {
+        margin-top: 8px;
+        color: #6c757d;
+        font-weight: 600;
+        font-size: 1.1em;
+    }
+
+    .price-card { text-align: right; }
+    .current-price { font-size: 2.5em; font-weight: 800; color: #00bfa5; } /* Modern Green */
+    .price-meta { color: #888; font-size: 0.95em; display: flex; gap: 20px; justify-content: flex-end;}
+
+    /* Responsive Grid */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr; /* Left (Chart) 2/3, Right (Info) 1/3 */
+        gap: 40px;
+    }
+
+    .description { color: #444; font-size: 1em; line-height: 1.7; max-height: 200px; overflow-y: auto; }
+
+    .info-box h3, .news-box h3, .indicators-box h3, .recent-data-box h3 {
+        color: var(--primary-color);
+        border-left: 4px solid var(--secondary-color);
+        padding-left: 10px;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+    }
+
+    /* Metrics Grid & Tooltip */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    .metric-item {
+        position: relative;
+        background: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        cursor: help;
+        border: 1px solid #eee;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .metric-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        border-color: #d0d7de;
+    }
+    .metric-item label { display: block; color: #888; font-size: 0.85em; margin-bottom: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;}
+    .metric-item .value { font-size: 1.2em; font-weight: 700; color: var(--primary-color); }
+
+    /* Tooltip CSS (Dark Blue Theme) */
+    .tooltip-container .tooltip-text {
+        visibility: hidden;
+        width: 220px;
+        background-color: var(--primary-color);
+        color: #fff;
+        text-align: left;
+        border-radius: 6px;
+        padding: 10px 15px;
+        position: absolute;
+        z-index: 10;
+        bottom: 130%;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.2s;
+        font-size: 0.85em;
+        line-height: 1.5;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .tooltip-container .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -6px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: var(--primary-color) transparent transparent transparent;
+    }
+
+    .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* News List */
+    .news-list { list-style: none; padding: 0; }
+    .news-item { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+    .news-item:last-child { border-bottom: none; }
+    .news-title { font-weight: 700; color: var(--primary-color); text-decoration: none; display: block; margin-bottom: 8px; font-size: 1.05em; line-height: 1.4;}
+    .news-title:hover { color: var(--secondary-color); }
+    .news-meta { font-size: 0.8em; color: #999; margin-bottom: 8px; text-transform: uppercase; font-weight: 600;}
+    .news-summary { font-size: 0.95em; color: #555; margin: 0; line-height: 1.6; }
+
+    .back-link { display: none; } /* Hidden as per request */
+
+    /* Recent Data Table */
+    .recent-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+        background: #fff;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #eee;
+    }
+    .recent-table th {
+        text-align: left;
+        padding: 12px;
+        background: #f8f9fa;
+        color: #666;
+        font-weight: 600;
+        border-bottom: 1px solid #eee;
+    }
+    .recent-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        color: #444;
+    }
+    .recent-table tr:last-child td { border-bottom: none; }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .main-grid { grid-template-columns: 1fr; gap: 30px;}
+        .detail-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+        .price-card { text-align: left; }
+        .current-price { font-size: 2em; }
+        .price-meta { justify-content: flex-start; }
+        .recent-table { font-size: 0.8em; }
+    }
+</style>
+
+        </main>
+    </div>
+</body>
+</html>

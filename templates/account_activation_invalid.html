@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+
+{% block title %}啟用失敗 - 股票分析平台{% endblock %}
+
+{% block content %}
+  <h2>啟用失敗</h2>
+  <p>您點擊的啟用連結無效，可能已經過期或被使用過了。</p>
+  <p>請重新 <a href="{% url 'signup' %}">註冊</a> 一次。</p>
+{% endblock %}

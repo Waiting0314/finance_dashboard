@@ -1,0 +1,849 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ stock.ticker }} - 詳細資訊{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb Debug -->
+<div class="breadcrumb">
+    <a href="{% url 'dashboard' %}">儀表板</a> <span class="separator">/</span> <span class="current">
+        {{ stock.ticker }}</span>
+</div>
+
+<div class="stock-detail-container">
+    <!-- Top Section: Header & Price Card -->
+    <div class="detail-header">
+        <div class="stock-title">
+            <h2>{{ stock.short_name|default:stock.name }} <span class="ticker-badge">{{ stock.ticker }}</span></h2>
+            <div class="market-badge">
+                {{ stock.get_market_display }}
+                {% if is_trading %}
+                <span class="trading-status trading-now">● 交易中</span>
+                {% else %}
+                <span class="trading-status trading-closed">已收盤</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="price-card">
+            {% if latest_price %}
+            <div class="current-price" style="color: {% if stock.change > 0 %}#e11d48{% elif stock.change < 0 %}#059669{% else %}#333{% endif %};">
+                {{ latest_price.close }}
+                <span style="font-size: 1rem; margin-left: 10px;">
+                    {% if stock.change > 0 %}▲{% elif stock.change < 0 %}▼{% endif %} {{ stock.change_percent|floatformat:2 }}%
+                </span>
+            </div>
+            <div class="price-meta">
+                <span class="date">資料日期: {{ latest_price.date }}</span>
+                <span class="volume">成交量: {{ latest_price.volume }}</span>
+            </div>
+            {% else %}
+            <div class="no-data">尚無股價資料</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Section: Chart & Info -->
+    <div class="main-grid">
+        <!-- Left Column: Chart & Description -->
+        <div class="chart-section">
+            <div class="card-box chart-card">
+                <h3>今日走勢 (Intraday)</h3>
+                <div id="chart-intraday" style="width: 100%; height: 300px;"></div>
+            </div>
+
+            <div class="card-box chart-card" style="margin-top: 20px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                    <h3 style="margin:0;">歷史走勢 (Historical)</h3>
+                </div>
+                <div id="chart-historical" style="width: 100%; height: 500px;"></div>
+            </div>
+
+            <div class="card-box info-box" style="margin-top: 20px;">
+                <h3>公司簡介</h3>
+                <div class="description" style="white-space: pre-wrap; line-height: 1.6; color: #444;">{{
+                    stock.description|default:"暫無簡介" }}</div>
+            </div>
+
+            <!-- Recent Trading Activity -->
+            <div class="card-box recent-data-box" style="margin-top: 30px;">
+                <h3>近期交易明細</h3>
+                <table class="recent-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>開盤</th>
+                            <th>最高</th>
+                            <th>最低</th>
+                            <th>收盤</th>
+                            <th>成交量</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for price in recent_prices %}
+                        <tr>
+                            <td>{{ price.date|date:"Y-m-d" }}</td>
+                            <td>{{ price.open }}</td>
+                            <td>{{ price.high }}</td>
+                            <td>{{ price.low }}</td>
+                            <td style="font-weight: bold; color: {% if price.close >= price.open %}#e11d48{% else %}#059669{% endif %};">{{ price.close }}</td>
+                            <td>{{ price.volume }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #999;">暫無近期數據</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Right Column: Indicators & News -->
+        <div class="info-section">
+            <!-- Financial Indicators (Expert Dashboard) -->
+            <div class="card-box indicators-box">
+                <h3>財務診斷指標 (Expert View)</h3>
+                
+                <!-- 1. 獲利能力 Profitability -->
+                <h4 style="margin: 15px 0 10px; color: #4b5563; font-size: 1.1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">獲利能力 (Profitability)</h4>
+                <div class="metrics-grid">
+                    <div class="metric-item tooltip-container">
+                        <label>ROE (股東權益報酬率)</label>
+                        <div class="value">
+                            {% load stock_filters %}
+                            {{ stock.roe|percentage }}
+                        </div>
+                        <span class="tooltip-text">巴菲特最看重的指標。衡量公司運用股東資金創造獲利的效率，長期 >15% 為佳。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>ROA (資產報酬率)</label>
+                        <div class="value">{{ stock.roa|percentage }}</div>
+                        <span class="tooltip-text">公司利用總資產賺錢的能力。ROA 與 ROE 差距過大可能代表高槓桿。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>毛利率 (Gross Margin)</label>
+                        <div class="value">{{ stock.gross_margin|percentage }}</div>
+                        <span class="tooltip-text">產品競爭力的護城河。越高代表產品越有定價權。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>營業利益率 (Op. Margin)</label>
+                        <div class="value">{{ stock.operating_margin|percentage }}</div>
+                        <span class="tooltip-text">本業賺錢的能力。扣除成本與營業費用後的獲利比率。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>淨利率 (Net Margin)</label>
+                        <div class="value">{{ stock.profit_margin|percentage }}</div>
+                        <span class="tooltip-text">最終落入口袋的錢。</span>
+                    </div>
+                </div>
+
+                <!-- 2. 償債與結構 Solvency & Structure -->
+                <h4 style="margin: 25px 0 10px; color: #4b5563; font-size: 1.1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">償債能力與結構 (Solvency)</h4>
+                <div class="metrics-grid">
+                    <div class="metric-item tooltip-container">
+                        <label>負債權益比 (Debt/Equity)</label>
+                        <div class="value">{{ stock.debt_to_equity|default:"-" }}%</div>
+                        <span class="tooltip-text">衡量財務槓桿。數值過高 (如 >200) 代表債務壓力大，風險較高。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>速動比率 (Quick Ratio)</label>
+                        <div class="value">{{ stock.quick_ratio|default:"-" }}</div>
+                        <span class="tooltip-text">衡量短期償債能力。扣除存貨後的流動資產/流動負債，>1 為安全。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>貝塔值 (Beta)</label>
+                        <div class="value">{{ stock.beta|default:"-" }}</div>
+                        <span class="tooltip-text">波動風險係數。>1 代表波動比大盤大 (攻擊型)，<1 代表波動小 (防禦型)。</span>
+                    </div>
+                </div>
+
+                <!-- 3. 估值與成長 Valuation -->
+                <h4 style="margin: 25px 0 10px; color: #4b5563; font-size: 1.1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">估值與成長 (Valuation)</h4>
+                <div class="metrics-grid">
+                    <div class="metric-item tooltip-container">
+                        <label>本益比 (P/E)</label>
+                        <div class="value">{{ stock.pe_ratio|default:"-" }}</div>
+                        <span class="tooltip-text">回本年限概念。成長股通常享有高本益比，價值股則較低。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>股價淨值比 (P/B)</label>
+                        <div class="value">{{ stock.price_to_book|default:"-" }}</div>
+                        <span class="tooltip-text">股價/每股淨值。通常 <1 代表股價低於清算價值，可能被低估。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>殖利率 (Yield)</label>
+                        <div class="value">{{ stock.dividend_yield|default:"-" }}</div>
+                        <span class="tooltip-text">現金股利回報率。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>市值 (Market Cap)</label>
+                        <div class="value">{{ stock.market_cap|filesizeformat }}</div>
+                        <span class="tooltip-text">公司總價值。</span>
+                    </div>
+                </div>
+
+                <!-- 4. 現金流 Cash Flow -->
+                <h4 style="margin: 25px 0 10px; color: #4b5563; font-size: 1.1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">現金流與財報 (Cash Flow)</h4>
+                <div class="metrics-grid">
+                    <div class="metric-item tooltip-container">
+                        <label>自由現金流 (FCF)</label>
+                        <div class="value" style="font-size: 0.9rem;">
+                            {% if stock.free_cash_flow %}
+                                {% load stock_filters %}{{ stock.free_cash_flow|format_revenue }}
+                            {% else %}-{% endif %}
+                        </div>
+                        <span class="tooltip-text">公司真正可以自由運用的現金。正值代表公司有能力發股利或再投資。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>營收 (Revenue)</label>
+                        <div class="value" style="font-size: 0.9rem;">
+                            {% if stock.last_revenue %}
+                            <a href="https://finance.yahoo.com/quote/{{ stock.ticker }}/financials" target="_blank" style="color: #2563eb; text-decoration: underline;">
+                                {{ stock.last_revenue|format_revenue }}
+                            </a>
+                            {% else %}-{% endif %}
+                        </div>
+                        <span class="tooltip-text">最近一期總營收 (連結至 Yahoo Finance)。</span>
+                    </div>
+                    <div class="metric-item tooltip-container">
+                        <label>下次財報日</label>
+                        <div class="value">
+                            {% if stock.next_earnings_date %}
+                                {{ stock.next_earnings_date|date:"Y-m-d" }}
+                                {% now "Y-m-d" as today %}
+                                {% if stock.next_earnings_date|date:"Y-m-d" < today %}
+                                    <span style="background: #fecaca; color: #dc2626; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">已過期</span>
+                                {% endif %}
+                            {% else %}-{% endif %}
+                        </div>
+                        <span class="tooltip-text">預計公布財報日期。</span>
+                    </div>
+                </div>
+
+                <!-- 5. 技術指標說明 Technical Indicators -->
+                <h4 style="margin: 25px 0 10px; color: #4b5563; font-size: 1.1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">技術指標說明 (Technical Indicators)</h4>
+                <div style="background: #f8fafc; border-radius: 8px; padding: 15px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong style="color: #1e3a5f; font-size: 0.95rem;">RSI 相對強弱指標</strong>
+                        <div id="current-rsi-display" style="font-size: 1.2rem; font-weight: 700; padding: 6px 12px; border-radius: 6px; background: #e2e8f0; color: #64748b;">
+                            載入中...
+                        </div>
+                    </div>
+                    <p style="color: #64748b; font-size: 0.85rem; margin: 0 0 12px 0; line-height: 1.5;">
+                        用來評估股價是否超買或超賣的動能指標。
+                    </p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <div id="rsi-overbought-card" style="flex: 1; min-width: 120px; background: #fef3c7; padding: 10px; border-radius: 6px; border-left: 3px solid #f59e0b; opacity: 0.5;">
+                            <strong style="color: #92400e; font-size: 0.8rem;">RSI > 70</strong>
+                            <p style="color: #78350f; font-size: 0.75rem; margin: 3px 0 0 0;">超買區：股價可能過熱，有拉回風險</p>
+                        </div>
+                        <div id="rsi-oversold-card" style="flex: 1; min-width: 120px; background: #dbeafe; padding: 10px; border-radius: 6px; border-left: 3px solid #3b82f6; opacity: 0.5;">
+                            <strong style="color: #1e40af; font-size: 0.8rem;">RSI < 30</strong>
+                            <p style="color: #1e3a8a; font-size: 0.75rem; margin: 3px 0 0 0;">超賣區：股價可能過低，有反彈機會</p>
+                        </div>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 0.75rem; margin-top: 10px; text-align: right;">參數設定：RSI(14)</p>
+                </div>
+            </div>
+
+            <!-- News Section -->
+            <div class="card-box news-box" style="margin-top: 30px;">
+                <h3>相關新聞</h3>
+                <div id="news-wrapper">
+                    {% if news_items %}
+                    <ul class="news-list">
+                        {% for news in news_items %}
+                        <li class="news-item">
+                            <a href="{{ news.link }}" target="_blank" class="news-title">{{ news.title }}</a>
+                            <div class="news-meta">
+                                <span>{{ news.publisher }}</span>
+                                {% if news.date %}
+                                <span>{{ news.date }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="news-summary">{{ news.summary|truncatechars:100 }}</p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="no-news">暫無相關新聞</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'dashboard' %}" class="back-link">&larr; 返回儀表板</a>
+    </div>
+</div>
+
+<!-- ECharts -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ticker = "{{ stock.ticker }}";
+        const api_url = "{% url 'stock_detail_api' stock.ticker %}";
+
+        // DOM Elements
+        const chartIntradayDom = document.getElementById('chart-intraday');
+        const chartHistoricalDom = document.getElementById('chart-historical');
+        const newsContainer = document.getElementById('news-wrapper'); // Updated selector
+        const descContainer = document.querySelector('.description');
+
+        // Show Loading State
+        if (chartHistoricalDom) {
+            const loadingChart = echarts.init(chartHistoricalDom);
+            loadingChart.showLoading({ text: '數據載入中...', color: '#00bfa5', textColor: '#00bfa5' });
+        }
+
+        fetch(api_url)
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                // 1. Update Description
+                if (descContainer) {
+                    // Check if data is valid and not the generic API placeholder
+                    if (data.description && data.description !== '暂无简介' && data.description.trim() !== '') {
+                        descContainer.innerText = data.description;
+                    } else {
+                        descContainer.innerText = "暫無簡介";
+                    }
+                }
+
+                // 2. Update News
+                if (newsContainer) {
+                    if (data.news && data.news.length > 0) {
+                        const newsItemsHtml = data.news.map(item => `
+                            <li class="news-item">
+                                <a href="${item.link}" target="_blank" class="news-title">${item.title}</a>
+                                <div class="news-meta">
+                                    <span>${item.publisher || 'Unknown'}</span>
+                                    <span>${item.date || ''}</span>
+                                </div>
+                            </li>
+                        `).join('');
+                        newsContainer.innerHTML = `<ul class="news-list">${newsItemsHtml}</ul>`;
+                    } else {
+                        newsContainer.innerHTML = '<p class="no-news">暫無相關新聞</p>';
+                    }
+                }
+
+                // 3. Render Intraday Chart
+                // Dispose previous instance if any (though unlikely on fresh load)
+                echarts.dispose(chartIntradayDom);
+                if (data.intraday_data && data.intraday_data.length > 0) {
+                    const myChart = echarts.init(chartIntradayDom);
+                    const dates = data.intraday_data.map(item => item[0]);
+                    const prices = data.intraday_data.map(item => item[1]);
+
+                    const option = {
+                        tooltip: { trigger: 'axis' },
+                        grid: { left: '3%', right: '3%', top: '10%', bottom: '10%', containLabel: true },
+                        xAxis: { type: 'category', data: dates, boundaryGap: false },
+                        yAxis: { scale: true },
+                        series: [{
+                            name: '價格',
+                            type: 'line',
+                            data: prices,
+                            smooth: true,
+                            showSymbol: false,
+                            lineStyle: { color: '#0066cc', width: 2 },
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(0, 102, 204, 0.3)' },
+                                    { offset: 1, color: 'rgba(0, 102, 204, 0.05)' }
+                                ])
+                            }
+                        }]
+                    };
+                    myChart.setOption(option);
+                    window.addEventListener('resize', () => myChart.resize());
+                } else {
+                    chartIntradayDom.innerHTML = '<p class="no-data-text" style="text-align:center; padding-top:100px; color:#999;">暫無今日走勢資料</p>';
+                }
+
+                // 4. Render Historical Chart
+                echarts.dispose(chartHistoricalDom);
+                if (data.historical_data && data.historical_data.length > 0) {
+                    const myChart = echarts.init(chartHistoricalDom);
+                    const rawData = data.historical_data;
+                    const dates = rawData.map(item => item[0]);
+                    const ohlc = rawData.map(item => [item[1], item[2], item[3], item[4]]); // Open, Close, Low, High
+                    const closes = rawData.map(item => item[2]);
+
+                    // Calculations
+                    function calculateMA(dayCount, data) {
+                        var result = [];
+                        for (var i = 0, len = data.length; i < len; i++) {
+                            if (i < dayCount) {
+                                result.push('-');
+                                continue;
+                            }
+                            var sum = 0;
+                            for (var j = 0; j < dayCount; j++) {
+                                sum += data[i - j][2]; // Close
+                            }
+                            result.push((sum / dayCount).toFixed(2));
+                        }
+                        return result;
+                    }
+
+                    function calculateRSI(data, period = 14) {
+                        let rsi = [];
+                        for (let i = 0; i < data.length; i++) {
+                            if (i < period) {
+                                rsi.push('-');
+                                continue;
+                            }
+                            let gain = 0, loss = 0;
+                            for (let j = 0; j < period; j++) {
+                                let change = data[i - j] - data[i - j - 1];
+                                if (change > 0) gain += change;
+                                if (change < 0) loss += Math.abs(change);
+                            }
+                            let rs = loss === 0 ? 100 : gain / loss;
+                            let val = 100 - (100 / (1 + rs));
+                            rsi.push(val.toFixed(2));
+                        }
+                        return rsi;
+                    }
+
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            axisPointer: { type: 'cross' },
+                            formatter: function (params) {
+                                let res = params[0].name + '<br/>';
+                                params.forEach(function (item) {
+                                    // Custom formatting to clarify Price vs RSI
+                                    let color = item.color;
+                                    if (typeof color === 'object' && color.colorStops) color = color.colorStops[0].color; // Gradient handling
+
+                                    if (item.seriesName === 'K線') {
+                                        res += `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>` +
+                                            `開: ${parseFloat(item.data[1]).toFixed(2)} 收: ${parseFloat(item.data[2]).toFixed(2)} <br/>` +
+                                            `&nbsp;&nbsp;&nbsp;&nbsp;低: ${parseFloat(item.data[3]).toFixed(2)} 高: ${parseFloat(item.data[4]).toFixed(2)}<br/>`;
+                                    } else {
+                                        let val = parseFloat(item.value);
+                                        let displayVal = (item.seriesName === '成交量') ? val.toFixed(0) : val.toFixed(2);
+                                        res += `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${item.color};"></span>` +
+                                            `${item.seriesName}: ${displayVal}<br/>`;
+                                    }
+                                });
+                                return res;
+                            }
+                        },
+                        legend: { data: ['K線', 'MA5', 'MA20', '成交量', 'RSI(14)'], top: 0 },
+                        axisPointer: { link: { xAxisIndex: 'all' } },
+                        grid: [
+                            { left: '5%', right: '3%', top: '8%', height: '40%' },   // K-line
+                            { left: '5%', right: '3%', top: '52%', height: '10%' },  // Volume
+                            { left: '5%', right: '3%', top: '66%', height: '14%' }   // RSI
+                        ],
+                        xAxis: [
+                            { type: 'category', data: dates, gridIndex: 0, axisLine: { onZero: false }, axisLabel: { show: false } },
+                            { type: 'category', data: dates, gridIndex: 1, axisLabel: { show: false }, axisTick: { show: false } },
+                            { type: 'category', data: dates, gridIndex: 2, axisLabel: { show: true, fontSize: 10, rotate: 45 }, axisTick: { show: true } }
+                        ],
+                        yAxis: [
+                            { scale: true, gridIndex: 0, splitLine: { show: true } },
+                            { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false } },
+                            { scale: true, gridIndex: 2, splitLine: { show: false }, min: 0, max: 100 }
+                        ],
+                        dataZoom: [
+                            { type: 'inside', xAxisIndex: [0, 1, 2], start: 50, end: 100 },
+                            { type: 'slider', xAxisIndex: [0, 1, 2], bottom: 0, start: 50, end: 100 }
+                        ],
+                        series: [
+                            {
+                                name: 'K線',
+                                type: 'candlestick',
+                                data: ohlc,
+                                // Taiwan: Red=Up, Green=Down
+                                itemStyle: { color: '#e11d48', color0: '#059669', borderColor: '#e11d48', borderColor0: '#059669' }
+                            },
+                            { name: 'MA5', type: 'line', data: calculateMA(5, rawData), smooth: true, lineStyle: { opacity: 0.5 } },
+                            { name: 'MA20', type: 'line', data: calculateMA(20, rawData), smooth: true, lineStyle: { opacity: 0.5 } },
+                            {
+                                name: '成交量',
+                                type: 'bar',
+                                xAxisIndex: 1,
+                                yAxisIndex: 1,
+                                data: rawData.map((d, i) => ({
+                                    value: d[5],  // Volume is at index 5: [date, O, C, L, H, Volume]
+                                    itemStyle: { color: closes[i] >= (i > 0 ? closes[i-1] : closes[i]) ? '#e11d48' : '#059669' }
+                                }))
+                            },
+                            {
+                                name: 'RSI(14)',
+                                type: 'line',
+                                xAxisIndex: 2,
+                                yAxisIndex: 2,
+                                data: calculateRSI(closes, 14),
+                                lineStyle: { color: '#8e44ad', width: 1.5 },
+                                markLine: { symbol: 'none', data: [{ yAxis: 70, lineStyle: { color: '#f59e0b' } }, { yAxis: 30, lineStyle: { color: '#3b82f6' } }] }
+                            }
+                        ]
+                    };
+                    myChart.setOption(option);
+                    window.addEventListener('resize', () => myChart.resize());
+                    
+                    // Update RSI Display in Sidebar
+                    const rsiData = calculateRSI(closes, 14);
+                    const latestRsi = rsiData.filter(v => v !== '-').pop();
+                    const rsiDisplay = document.getElementById('current-rsi-display');
+                    const overboughtCard = document.getElementById('rsi-overbought-card');
+                    const oversoldCard = document.getElementById('rsi-oversold-card');
+                    
+                    if (latestRsi && rsiDisplay) {
+                        const rsiValue = parseFloat(latestRsi);
+                        rsiDisplay.textContent = rsiValue.toFixed(2);
+                        
+                        if (rsiValue > 70) {
+                            // Overbought - Yellow/Orange
+                            rsiDisplay.style.background = '#fef3c7';
+                            rsiDisplay.style.color = '#92400e';
+                            if (overboughtCard) overboughtCard.style.opacity = '1';
+                        } else if (rsiValue < 30) {
+                            // Oversold - Blue
+                            rsiDisplay.style.background = '#dbeafe';
+                            rsiDisplay.style.color = '#1e40af';
+                            if (oversoldCard) oversoldCard.style.opacity = '1';
+                        } else {
+                            // Neutral - Green
+                            rsiDisplay.style.background = '#d1fae5';
+                            rsiDisplay.style.color = '#065f46';
+                        }
+                    } else if (rsiDisplay) {
+                        rsiDisplay.textContent = 'N/A';
+                    }
+                } else {
+                    chartHistoricalDom.innerHTML = '<p class="no-data-text" style="text-align:center; padding-top:150px; color:#999;">暫無歷史走勢資料</p>';
+                }
+
+            })
+            .catch(err => {
+                console.error('Fetch Error:', err);
+                if (chartHistoricalDom) chartHistoricalDom.innerHTML = '<p style="text-align:center; padding-top:150px; color:red;">資料載入失敗，請稍後再試</p>';
+            });
+
+        // Real-time Price Update (Separate Endpoint)
+        // Keep this separate to update price without reloading charts
+        function updatePrice() {
+            fetch('{% url "get_latest_price" stock.ticker %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) return;
+                    const priceEl = document.querySelector('.current-price');
+                    if (priceEl) {
+                        priceEl.textContent = data.price.toFixed(2);
+                        priceEl.style.color = '#00bfa5'; // Flash color?
+                    }
+                })
+                .catch(e => console.log(e));
+        }
+
+        {% if is_trading %}
+        setInterval(updatePrice, 5000);
+        {% endif %}
+    });
+</script>
+
+<style>
+    /* Breadcrumb */
+    .breadcrumb {
+        margin-bottom: 25px;
+        font-size: 0.95em;
+        color: #666;
+        background: white;
+        padding: 10px 15px;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+    }
+
+    .breadcrumb a {
+        color: var(--secondary-color);
+        font-weight: 500;
+    }
+
+    .stock-detail-container {
+        padding: 30px;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 25px;
+        margin-bottom: 30px;
+    }
+
+    .stock-title h2 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 2em;
+        color: var(--primary-color);
+    }
+
+    .ticker-badge {
+        font-size: 0.5em;
+        background: #e9ecef;
+        padding: 4px 10px;
+        border-radius: 20px;
+        color: #495057;
+        vertical-align: middle;
+    }
+
+    .market-badge {
+        margin-top: 8px;
+        color: #6c757d;
+        font-weight: 600;
+        font-size: 1.1em;
+    }
+
+    .price-card {
+        text-align: right;
+    }
+
+    .current-price {
+        font-size: 2.5em;
+        font-weight: 800;
+        color: #00bfa5;
+    }
+
+    /* Modern Green */
+    .price-meta {
+        color: #888;
+        font-size: 0.95em;
+        display: flex;
+        gap: 20px;
+        justify-content: flex-end;
+    }
+
+    /* Responsive Grid */
+    .main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        /* Left (Chart) 2/3, Right (Info) 1/3 */
+        gap: 40px;
+    }
+
+    .description {
+        color: #444;
+        font-size: 1em;
+        line-height: 1.7;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .info-box h3,
+    .news-box h3,
+    .indicators-box h3,
+    .recent-data-box h3 {
+        color: var(--primary-color);
+        border-left: 4px solid var(--secondary-color);
+        padding-left: 10px;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+    }
+
+    /* Metrics Grid & Tooltip */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .metric-item {
+        position: relative;
+        background: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        cursor: help;
+        border: 1px solid #eee;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .metric-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        border-color: #d0d7de;
+    }
+
+    .metric-item label {
+        display: block;
+        color: #888;
+        font-size: 0.85em;
+        margin-bottom: 5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metric-item .value {
+        font-size: 1.2em;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    /* Tooltip CSS (Dark Blue Theme) */
+    .tooltip-container .tooltip-text {
+        visibility: hidden;
+        width: 280px;
+        background-color: #1e3a5f;
+        color: #fff;
+        text-align: left;
+        border-radius: 8px;
+        padding: 12px 16px;
+        position: absolute;
+        z-index: 9999;
+        bottom: 130%;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.3s, visibility 0.3s;
+        font-size: 0.9em;
+        line-height: 1.6;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .tooltip-container .tooltip-text::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -6px;
+        border-width: 6px;
+        border-style: solid;
+        border-color: var(--primary-color) transparent transparent transparent;
+    }
+
+    .tooltip-container:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* News List */
+    .news-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .news-item {
+        margin-bottom: 20px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 20px;
+    }
+
+    .news-item:last-child {
+        border-bottom: none;
+    }
+
+    .news-title {
+        font-weight: 700;
+        color: var(--primary-color);
+        text-decoration: none;
+        display: block;
+        margin-bottom: 8px;
+        font-size: 1.05em;
+        line-height: 1.4;
+    }
+
+    .news-title:hover {
+        color: var(--secondary-color);
+    }
+
+    .news-meta {
+        font-size: 0.8em;
+        color: #999;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .news-summary {
+        font-size: 0.95em;
+        color: #555;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .back-link {
+        display: none;
+    }
+
+    /* Hidden as per request */
+
+    /* Recent Data Table */
+    .recent-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+        background: #fff;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #eee;
+    }
+
+    .recent-table th {
+        text-align: left;
+        padding: 12px;
+        background: #f8f9fa;
+        color: #666;
+        font-weight: 600;
+        border-bottom: 1px solid #eee;
+    }
+
+    .recent-table td {
+        padding: 12px;
+        border-bottom: 1px solid #f0f0f0;
+        color: #444;
+    }
+
+    .recent-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .main-grid {
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        .detail-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .price-card {
+            text-align: left;
+        }
+
+        .current-price {
+            font-size: 2em;
+        }
+
+        .price-meta {
+            justify-content: flex-start;
+        }
+
+        .recent-table {
+            font-size: 0.8em;
+        }
+    }
+</style>
+{% endblock %}

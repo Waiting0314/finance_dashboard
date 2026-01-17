@@ -1,0 +1,506 @@
+{% extends 'base.html' %}
+{% load stock_filters %}
+
+{% block title %}Stock Watchlist{% endblock %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* Scoped Styles to avoid breaking sidebar if possible */
+    .dashboard-wrapper {
+        font-family: 'Inter', sans-serif;
+        background-color: #f9fafb;
+        /* bg-gray-50 */
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* no-scrollbar */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    /* Modal Styles from sample */
+    .modal-backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+    }
+
+    /* Animation removed for consistency */
+    .sparkline path {
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+</style>
+
+<div class="dashboard-wrapper h-full flex flex-col relative overflow-hidden">
+    <!-- Header -->
+    <header class="px-8 py-6 bg-white border-b border-gray-100 flex justify-between items-center flex-shrink-0">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">自選股清單</h1>
+            <p class="text-sm text-gray-500">即時監控面板</p>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Sync Button -->
+            <button type="button" id="globalRefreshBtn"
+                class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm">
+                <svg id="syncIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
+                </svg>
+                <span id="syncText">更新報價</span>
+            </button>
+
+            <div class="h-6 w-px bg-gray-200 mx-2"></div>
+
+            <!-- View Toggles -->
+            <div class="flex bg-gray-100 p-1 rounded-lg">
+                <button onclick="switchView('list')" id="btn-list"
+                    class="flex items-center gap-2 px-3 py-1.5 bg-white rounded shadow-sm text-sm font-medium text-gray-800 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                    列表
+                </button>
+                <button onclick="switchView('grid')" id="btn-grid"
+                    class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-800 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                        </path>
+                    </svg>
+                    卡片
+                </button>
+            </div>
+
+            <div class="h-6 w-px bg-gray-200 mx-2"></div>
+
+            <button id="addStockBtn"
+                class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                新增股票
+            </button>
+        </div>
+    </header>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto p-8 bg-gray-50 no-scrollbar">
+
+        <!-- Messages -->
+        {% if messages %}
+        <div class="mb-6 space-y-2">
+            {% for message in messages %}
+            <div class="px-4 py-3 rounded-lg text-sm font-medium 
+                {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-100
+                {% elif message.tags == 'success' %}bg-green-50 text-green-700 border border-green-100
+                {% else %}bg-blue-50 text-blue-700 border border-blue-100{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- List View (Default) -->
+        <div id="view-list" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/4">代號 / 名稱
+                        </th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">財務資訊</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">現價
+                            (TWD)</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
+                            漲跌幅</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">
+                            走勢概覽</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">操作
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for item in watchlist %}
+                    <tr class="hover:bg-gray-50 transition group cursor-pointer"
+                        onclick="location.href='{% url 'stock_detail' item.stock.ticker %}'">
+                        <td class="px-6 py-5">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="h-10 w-12 bg-gray-100 rounded-lg flex items-center justify-center font-bold text-xs text-gray-600 truncate px-1">
+                                    {{ item.stock.ticker|cut:".TW" }}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-gray-900 text-base">{{ item.stock.short_name|default:item.stock.name|truncatechars:10|default:"--" }}</div>
+                                    <div class="text-xs text-gray-400 mt-0.5">{{ item.stock.get_market_display }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                             <div class="flex flex-col items-end gap-1">
+                                {% if item.stock.last_revenue %}
+                                <a href="https://finance.yahoo.com/quote/{{ item.stock.ticker }}/financials" target="_blank" class="text-xs font-medium text-blue-600 hover:underline" title="營收 (Revenue)">
+                                    Rev: {{ item.stock.last_revenue|format_revenue }}
+                                </a>
+                                {% endif %}
+                                {% if item.stock.next_earnings_date %}
+                                <div class="text-xs text-gray-500" title="下次財報日 (Next Earnings)">
+                                    Earn: {{ item.stock.next_earnings_date|date:"Y-m-d" }}
+                                </div>
+                                {% endif %}
+                             </div>
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                            {% if item.stock.last_price %}
+                            <div class="font-bold text-gray-900 text-base">{{ item.stock.last_price }}</div>
+                            {% else %}
+                            <div class="text-gray-400 text-sm">--</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                            {% if item.stock.change > 0 %}
+                                {% if item.stock.change_percent >= 8 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-rose-600 text-white shadow-sm">
+                                    +{{ item.stock.change_percent|floatformat:2 }}%
+                                </span>
+                                <div class="text-xs text-rose-600 mt-1 font-bold">+{{ item.stock.change }}</div>
+                                {% elif item.stock.change_percent >= 5 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-rose-200 text-rose-800">
+                                    +{{ item.stock.change_percent|floatformat:2 }}%
+                                </span>
+                                <div class="text-xs text-rose-600 mt-1 font-bold">+{{ item.stock.change }}</div>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-rose-50 text-rose-600">
+                                    +{{ item.stock.change_percent|floatformat:2 }}%
+                                </span>
+                                <div class="text-xs text-rose-600 mt-1">+{{ item.stock.change }}</div>
+                                {% endif %}
+                            {% elif item.stock.change < 0 %} 
+                                {% if item.stock.change_percent <= -8 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-emerald-600 text-white shadow-sm">
+                                    {{ item.stock.change_percent|floatformat:2 }}%
+                                </span>
+                                <div class="text-xs text-emerald-600 mt-1 font-bold">{{ item.stock.change }}</div>
+                                {% elif item.stock.change_percent <= -5 %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-emerald-200 text-emerald-800">
+                                    {{ item.stock.change_percent|floatformat:2 }}%
+                                </span>
+                                <div class="text-xs text-emerald-600 mt-1 font-bold">{{ item.stock.change }}</div>
+                                {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-emerald-50 text-emerald-600">
+                                    {{ item.stock.change_percent|floatformat:2 }}%
+                                </span>
+                                <div class="text-xs text-emerald-600 mt-1">{{ item.stock.change }}</div>
+                                {% endif %}
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-bold bg-gray-100 text-gray-600">
+                                    0.00%
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-5">
+                            <div class="w-32 mx-auto h-8">
+                                {% if item.stock.change > 0 %}
+                                <svg class="w-full h-full text-rose-400 sparkline" fill="none" stroke="currentColor"
+                                    viewBox="0 0 100 40" preserveAspectRatio="none">
+                                    <path stroke-width="2" d="{{ item.sparkline_svg|default:'M0 20 L100 20' }}" />
+                                </svg>
+                                {% elif item.stock.change < 0 %} <svg class="w-full h-full text-emerald-400 sparkline"
+                                    fill="none" stroke="currentColor" viewBox="0 0 100 40" preserveAspectRatio="none">
+                                    <path stroke-width="2" d="{{ item.sparkline_svg|default:'M0 20 L100 20' }}" />
+                                    </svg>
+                                    {% else %}
+                                    <div class="h-px bg-gray-300 w-full mt-4"></div>
+                                    {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                            <button
+                                onclick="event.stopPropagation(); openRemoveModal('{{ item.stock.id }}', '{{ item.stock.ticker }}')"
+                                class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-10 text-gray-500">
+                            尚無追蹤股票，請點擊 "Add Stock" 新增。
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Pagination (List) -->
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-between items-center text-sm text-gray-500">
+                <span>顯示 {{ watchlist.start_index }} - {{ watchlist.end_index }} 筆，共 {{ watchlist.paginator.count }}
+                    筆</span>
+                <div class="flex gap-2">
+                    {% if watchlist.has_previous %}
+                    <a href="?page={{ watchlist.previous_page_number }}"
+                        class="px-3 py-1 hover:bg-gray-100 rounded">上一頁</a>
+                    {% endif %}
+                    {% if watchlist.has_next %}
+                    <a href="?page={{ watchlist.next_page_number }}" class="px-3 py-1 hover:bg-gray-100 rounded">下一頁</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid View (Hidden) -->
+        <div id="view-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {% for item in watchlist %}
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition group flex flex-col justify-between cursor-pointer"
+                onclick="location.href='{% url 'stock_detail' item.stock.ticker %}'">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider">{{ item.stock.ticker|cut:".TW" }}</div>
+                    <button
+                        onclick="event.stopPropagation(); openRemoveModal('{{ item.stock.id }}', '{{ item.stock.ticker }}')"
+                        class="text-gray-300 hover:text-red-500 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-gray-900 truncate">{{ item.stock.short_name|default:item.stock.name|default:item.stock.ticker }}</h3>
+                    <div class="text-3xl font-bold text-gray-900 mt-2">{{ item.stock.last_price|default:"--" }}</div>
+                    <div class="mt-2 flex flex-col gap-0.5 text-xs text-gray-500">
+                        {% if item.stock.last_revenue %}
+                        <div>Rev: <span class="font-medium text-gray-700">{{ item.stock.last_revenue|format_revenue }}</span></div>
+                        {% endif %}
+                        {% if item.stock.next_earnings_date %}
+                        <div>Earn: <span class="font-medium text-gray-700">{{ item.stock.next_earnings_date|date:"Y-m-d" }}</span></div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-end justify-between">
+                    {% if item.stock.change > 0 %}
+                        {% if item.stock.change_percent >= 8 %}
+                        <div class="px-2 py-1 bg-rose-600 text-white text-sm font-bold rounded shadow-sm">+{{ item.stock.change_percent|floatformat:2 }}%</div>
+                        {% elif item.stock.change_percent >= 5 %}
+                        <div class="px-2 py-1 bg-rose-200 text-rose-800 text-sm font-bold rounded">+{{ item.stock.change_percent|floatformat:2 }}%</div>
+                        {% else %}
+                        <div class="px-2 py-1 bg-rose-50 text-rose-700 text-sm font-bold rounded">+{{ item.stock.change_percent|floatformat:2 }}%</div>
+                        {% endif %}
+                        <svg class="w-24 h-10 text-rose-400 sparkline" fill="none" stroke="currentColor"
+                            viewBox="0 0 100 40" preserveAspectRatio="none">
+                            <path stroke-width="2" d="{{ item.sparkline_svg|default:'M0 20 L100 20' }}" />
+                        </svg>
+                    {% elif item.stock.change < 0 %}
+                        {% if item.stock.change_percent <= -8 %}
+                        <div class="px-2 py-1 bg-emerald-600 text-white text-sm font-bold rounded shadow-sm">{{ item.stock.change_percent|floatformat:2 }}%</div>
+                        {% elif item.stock.change_percent <= -5 %}
+                        <div class="px-2 py-1 bg-emerald-200 text-emerald-800 text-sm font-bold rounded">{{ item.stock.change_percent|floatformat:2 }}%</div>
+                        {% else %}
+                        <div class="px-2 py-1 bg-emerald-50 text-emerald-600 text-sm font-bold rounded">{{ item.stock.change_percent|floatformat:2 }}%</div>
+                        {% endif %}
+                        <svg class="w-24 h-10 text-emerald-400 sparkline" fill="none" stroke="currentColor" viewBox="0 0 100 40" preserveAspectRatio="none">
+                             <path stroke-width="2" d="{{ item.sparkline_svg|default:'M0 20 L100 20' }}" />
+                        </svg>
+                    {% else %}
+                <div class="px-2 py-1 bg-gray-100 text-gray-600 text-sm font-bold rounded">0.00%</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination (Grid) -->
+    <div id="pagination-grid" class="hidden mt-6 px-6 py-4 bg-white rounded-2xl border border-gray-200 flex justify-between items-center text-sm text-gray-500">
+        <span>顯示 {{ watchlist.start_index }} - {{ watchlist.end_index }} 筆，共 {{ watchlist.paginator.count }} 筆</span>
+        <div class="flex gap-2">
+            {% if watchlist.has_previous %}
+            <a href="?page={{ watchlist.previous_page_number }}" class="px-3 py-1 hover:bg-gray-100 rounded">上一頁</a>
+            {% endif %}
+            {% if watchlist.has_next %}
+            <a href="?page={{ watchlist.next_page_number }}" class="px-3 py-1 hover:bg-gray-100 rounded">下一頁</a>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+</div>
+
+<!-- Add Stock Modal -->
+<div id="addStockModal" class="modal-backdrop fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-gray-900">新增股票</h3>
+            <button class="close-modal text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        </div>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">市場</label>
+                <select name="market"
+                    class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition">
+                    <option value="TW">台股</option>
+                    <option value="US">美股</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">股票代號</label>
+                <input type="text" name="ticker" placeholder="例如：2330、AAPL" required
+                    class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none transition">
+            </div>
+            <button type="submit"
+                class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition transform active:scale-95">
+                加入自選股
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Remove Modal -->
+<div id="removeStockModal" class="modal-backdrop fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <div class="mb-4">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mt-2">移除股票？</h3>
+            <p id="removeModalText" class="text-sm text-gray-500 mt-1">確定要從自選股中移除嗎？</p>
+        </div>
+        <form id="removeStockForm" method="get" action="">
+            <div class="flex gap-3">
+                <button type="button" id="cancelRemoveBtn"
+                    class="flex-1 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 font-medium">取消</button>
+                <button type="submit"
+                    class="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 font-medium">移除</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sync Modal -->
+<div id="refreshModal" class="modal-backdrop fixed inset-0 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">更新所有報價</h3>
+        <p class="text-sm text-gray-500 mb-6">這將會抓取所有股票的最新價格，可能需要數秒鐘。</p>
+        <div id="syncProgress" class="hidden mb-4">
+            <div class="flex items-center justify-center gap-2 text-blue-600">
+                <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>正在更新中...</span>
+            </div>
+        </div>
+        <form id="syncForm" action="{% url 'refresh_all_stocks' %}" method="post">
+            {% csrf_token %}
+            <div id="syncButtons" class="flex gap-3">
+                <button type="button" id="cancelRefreshBtn"
+                    class="flex-1 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 font-medium">取消</button>
+                <button type="submit" id="doSyncBtn"
+                    class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">立即更新</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // View Switcher logic
+    function switchView(view) {
+        const gridView = document.getElementById('view-grid');
+        const listView = document.getElementById('view-list');
+        const btnGrid = document.getElementById('btn-grid');
+        const btnList = document.getElementById('btn-list');
+        const paginationGrid = document.getElementById('pagination-grid');
+
+        if (view === 'grid') {
+            gridView.classList.remove('hidden');
+            listView.classList.add('hidden');
+            if (paginationGrid) paginationGrid.classList.remove('hidden');
+
+            btnGrid.classList.remove('text-gray-500', 'hover:text-gray-800');
+            btnGrid.classList.add('bg-white', 'shadow-sm', 'text-gray-800');
+
+            btnList.classList.add('text-gray-500', 'hover:text-gray-800');
+            btnList.classList.remove('bg-white', 'shadow-sm', 'text-gray-800');
+        } else {
+            gridView.classList.add('hidden');
+            listView.classList.remove('hidden');
+            if (paginationGrid) paginationGrid.classList.add('hidden');
+
+            btnList.classList.remove('text-gray-500', 'hover:text-gray-800');
+            btnList.classList.add('bg-white', 'shadow-sm', 'text-gray-800');
+
+            btnGrid.classList.add('text-gray-500', 'hover:text-gray-800');
+            btnGrid.classList.remove('bg-white', 'shadow-sm', 'text-gray-800');
+        }
+    }
+
+    // Modal Logic
+    document.addEventListener('DOMContentLoaded', () => {
+        // Add Stock
+        const addModal = document.getElementById('addStockModal');
+        const addBtn = document.getElementById('addStockBtn');
+        const closeAdd = addModal.querySelector('.close-modal');
+
+        addBtn.onclick = () => addModal.classList.remove('hidden');
+        closeAdd.onclick = () => addModal.classList.add('hidden');
+
+        // Remove Stock
+        const removeModal = document.getElementById('removeStockModal');
+        const closeRemove = document.getElementById('cancelRemoveBtn');
+        window.openRemoveModal = function (stockId, ticker) {
+            const form = document.getElementById('removeStockForm');
+            const text = document.getElementById('removeModalText');
+            form.action = `/stocks/watchlist/remove/${stockId}/`;
+            text.textContent = `確定要從自選股中移除 ${ticker} 嗎？`;
+            removeModal.classList.remove('hidden');
+        }
+        closeRemove.onclick = () => removeModal.classList.add('hidden');
+
+        // Refresh Stock
+        const refreshModal = document.getElementById('refreshModal');
+        const refreshBtn = document.getElementById('globalRefreshBtn');
+        const closeRefresh = document.getElementById('cancelRefreshBtn');
+
+        refreshBtn.onclick = () => refreshModal.classList.remove('hidden');
+        closeRefresh.onclick = () => refreshModal.classList.add('hidden');
+
+        // Sync Loading State
+        const syncForm = document.getElementById('syncForm');
+        const syncProgress = document.getElementById('syncProgress');
+        const syncButtons = document.getElementById('syncButtons');
+        
+        if (syncForm) {
+            syncForm.addEventListener('submit', () => {
+                if (syncProgress) syncProgress.classList.remove('hidden');
+                if (syncButtons) syncButtons.classList.add('hidden');
+            });
+        }
+
+        // Close on outside click
+        window.onclick = (e) => {
+            if (e.target === addModal) addModal.classList.add('hidden');
+            if (e.target === removeModal) removeModal.classList.add('hidden');
+            if (e.target === refreshModal) refreshModal.classList.add('hidden');
+        }
+    });
+
+    // Check URL param for saved view preference (Optional enhancement)
+</script>
+
+{% endblock %}

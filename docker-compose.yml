@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=stock_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5433:5432"
+
+  web:
+    build: .
+    command: gunicorn stock_dashboard.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8088:8000"
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/stock_db
+      - SECRET_KEY=your-secret-key-here
+      - DEBUG=1
+    depends_on:
+      - db
+
+  worker:
+    build: .
+    command: python manage.py process_tasks
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=postgres://postgres:postgres@db:5432/stock_db
+      - SECRET_KEY=your-secret-key-here
+      - DEBUG=1
+    depends_on:
+      - db
+      - web
+
+volumes:
+  postgres_data:

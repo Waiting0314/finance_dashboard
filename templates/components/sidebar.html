@@ -1,0 +1,73 @@
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <a href="{% url 'dashboard' %}" class="logo-area" style="text-decoration: none;">
+            <div class="logo-icon">S</div>
+            <span class="logo-text">StockPro</span>
+        </a>
+        <button class="toggle-btn" id="sidebarToggle">
+            <!-- Icon: Menu / Chevron Left -->
+            <svg class="arrow-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+        </button>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="{% url 'dashboard' %}"
+            class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <div class="icon">📊</div>
+            <span class="label">儀表板</span>
+        </a>
+        <!-- Add more links here later -->
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="user-profile">
+            <div class="user-avatar">
+                {{ user.username|make_list|first|upper }}
+            </div>
+            <div class="user-info">
+                <span class="username">{{ user.username }}</span>
+                <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-link"
+                        style="background: #fef2f2; border: 1px solid #fecaca; padding: 4px 12px; border-radius: 4px; color: #dc2626; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        <span>登出</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (() => {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Sidebar Toggle Logic
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const mainContent = document.querySelector('.main-content');
+
+            // Check local storage
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (isCollapsed && sidebar) {
+                sidebar.classList.add('collapsed');
+                if (mainContent) mainContent.style.marginLeft = '72px';
+            }
+
+            if (toggleBtn && sidebar) {
+                toggleBtn.addEventListener('click', () => {
+                    sidebar.classList.toggle('collapsed');
+                    const collapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebarCollapsed', collapsed);
+
+                    if (mainContent) {
+                        mainContent.style.marginLeft = collapsed ? '72px' : '260px';
+                    }
+                });
+            }
+        });
+    })();
+</script>
