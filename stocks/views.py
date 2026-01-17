@@ -147,10 +147,10 @@ def refresh_all_stocks(request):
     Manually triggers an update for all stocks in the database.
     Now also ensures they are scheduled for hourly updates.
     """
-    # Allow POST (preferred) or GET (legacy/direct link)
     if request.method == 'POST' or request.method == 'GET':
         # FIX: Only update stocks in the requesting user's watchlist
-        user_stocks = Stock.objects.filter(watchlist__user=request.user).distinct()
+        # Check models.py: stock = models.ForeignKey(..., related_name='watchers')
+        user_stocks = Stock.objects.filter(watchers__user=request.user).distinct()
         count = user_stocks.count()
         
         for stock in user_stocks:
