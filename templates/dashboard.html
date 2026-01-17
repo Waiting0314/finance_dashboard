@@ -159,14 +159,20 @@
                                 {% endif %}
                              </div>
                         </td>
-                        <td class="px-6 py-5 text-right">
+                        <td class="px-6 py-5 text-right" data-ticker="{{ item.stock.ticker }}">
                             {% if item.stock.last_price %}
-                            <div class="font-bold text-gray-900 text-base">
+                            <div class="font-bold text-gray-900 text-base price-display">
                                 <span class="text-gray-400 font-normal text-sm">{% if item.stock.market == 'TW' %}NT${% else %}${% endif %}</span>
                                 {{ item.stock.last_price }}
                             </div>
                             {% else %}
-                            <div class="text-gray-400 text-sm">--</div>
+                            <div class="loading-indicator flex items-center gap-2 text-blue-600">
+                                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span class="text-sm">載入中...</span>
+                            </div>
                             {% endif %}
                         </td>
 
@@ -505,9 +511,78 @@
             if (e.target === removeModal) removeModal.classList.add('hidden');
             if (e.target === refreshModal) refreshModal.classList.add('hidden');
         }
+        // Loading Stocks Polling
+        const loadingStocks = {{ loading_stocks_json|safe }};
+        if (loadingStocks && loadingStocks.length > 0) {
+            console.log('Polling for loading stocks:', loadingStocks);
+            
+            const pollInterval = setInterval(() => {
+                fetch('/stocks/api/check-loading-status/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+                    },
+                    body: JSON.stringify({ tickers: loadingStocks })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.ready && data.ready.length > 0) {
+                        showNotification(`${data.ready.join(', ')} 資料已更新完成！`, 'success');
+                        clearInterval(pollInterval);
+                    }
+                })
+                .catch(err => console.log('Poll error:', err));
+            }, 5000); // Check every 5 seconds
+        }
     });
 
     // Check URL param for saved view preference (Optional enhancement)
+</script>
+
+<!-- Toast Notification Container -->
+<div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<script>
+    function showNotification(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        
+        const colors = {
+            success: 'bg-green-500',
+            error: 'bg-red-500',
+            info: 'bg-blue-500',
+            warning: 'bg-yellow-500'
+        };
+        
+        toast.className = `${colors[type] || colors.info} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-x-full`;
+        toast.innerHTML = `
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                ${type === 'success' 
+                    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>'
+                    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>'
+                }
+            </svg>
+            <span class="font-medium">${message}</span>
+            <button onclick="this.parentElement.remove()" class="ml-2 hover:opacity-75">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <a href="javascript:location.reload()" class="ml-1 underline text-sm hover:opacity-75">刷新頁面</a>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+        
+        // Auto remove after 10 seconds
+        setTimeout(() => {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => toast.remove(), 300);
+        }, 10000);
+    }
 </script>
 
 {% endblock %}

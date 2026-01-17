@@ -43,7 +43,7 @@
 
 ![功能展示](docs/feature_demo.webp)
 
-> 動畫展示：登入 → 新增股票 → 儀表板顯示
+> 動畫展示完整操作流程：登入 → 新增股票 → 儀表板顯示 → 股票詳情頁
 
 ### 登入頁面
 
@@ -52,6 +52,12 @@
 ### 儀表板
 
 ![儀表板](docs/dashboard_screenshot.png)
+
+### 股票詳情頁
+
+![股票詳情](docs/stock_detail_screenshot.png)
+
+> 包含 K 線圖、技術指標 (RSI, MA)、財務診斷指標 (ROE, ROA, 毛利率等) 及相關新聞
 
 ## 技術棧 (Tech Stack)
 

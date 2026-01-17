@@ -124,7 +124,7 @@ def dashboard(request):
     context = {
         'watchlist': page_obj, # Pass page_obj as watchlist for iteration
         'stock_data_json': json.dumps(stock_data_for_chart),
-        'loading_stocks': loading_stocks,
+        'loading_stocks_json': json.dumps(list(loading_stocks)),
     }
     return render(request, 'dashboard.html', context)
 
@@ -425,3 +425,31 @@ def get_latest_price(request, ticker):
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def check_loading_status(request):
+    """
+    API endpoint to check if stocks have finished loading their data.
+    Returns which stocks now have price data available.
+    """
+    import json
+    
+    if request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            tickers = body.get('tickers', [])
+            
+            ready = []
+            for ticker in tickers:
+                try:
+                    stock = Stock.objects.get(ticker=ticker)
+                    if stock.last_price is not None or stock.prices.exists():
+                        ready.append(ticker)
+                except Stock.DoesNotExist:
+                    pass
+            
+            return JsonResponse({'ready': ready, 'pending': [t for t in tickers if t not in ready]})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    
+    return JsonResponse({'error': 'POST required'}, status=405)
