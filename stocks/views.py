@@ -149,17 +149,15 @@ def refresh_all_stocks(request):
     """
     # Allow POST (preferred) or GET (legacy/direct link)
     if request.method == 'POST' or request.method == 'GET':
-        stocks = Stock.objects.all()
-        count = stocks.count()
+        # FIX: Only update stocks in the requesting user's watchlist
+        user_stocks = Stock.objects.filter(watchlist__user=request.user).distinct()
+        count = user_stocks.count()
         
-        for stock in stocks:
+        for stock in user_stocks:
             # Schedule to run immediately (0) and repeat every hour (3600 seconds)
-            # 'verbose_name' helps identify the task to avoid duplicates if properly managed,
-            # but background_task deduplication can be tricky.
-            # Simple approach: Just fire it.
             fetch_stock_data(stock.ticker, schedule=0, repeat=3600)
 
-        messages.success(request, f'已開始更新 {count} 支股票，並設定為每小時自動更新。')
+        messages.success(request, f'已開始更新您的 {count} 支追蹤股票，並設定為每小時自動更新。')
     
     return redirect('dashboard')
 
@@ -170,6 +168,9 @@ from datetime import datetime
 import pytz
 from deep_translator import GoogleTranslator
 from django.http import JsonResponse
+import feedparser
+import time
+import requests
 
 # Helper for Market Open Status
 def is_market_open(market):
@@ -276,23 +277,25 @@ def stock_detail_api(request, ticker):
 
     # 2. News Handling
     news_list = []
+    translator = GoogleTranslator(source='auto', target='zh-TW')
+
+    # A. Fetch from Yahoo Finance
     try:
         raw_news = yf_ticker.news
         if raw_news:
-            translator = GoogleTranslator(source='auto', target='zh-TW')
             for item in raw_news[:3]:
                 # Access the actual data payload
-                data = item.get('content', item) # Fallback to item if content missing
+                data = item.get('content', item)
                 
                 title = data.get('title', '')
-                if not title:
-                     continue
-
+                if not title: continue
+                
                 link = data.get('link', data.get('clickThroughUrl', {}).get('url', '#'))
                 
-                # Publisher Logic
+                # Check for duplication
+                if any(n['link'] == link for n in news_list): continue
+
                 publisher = 'Unknown'
-                # Check provider inside data
                 if 'provider' in data and isinstance(data['provider'], dict):
                      publisher = data['provider'].get('displayName', 'Unknown')
                 elif 'publisher' in data:
@@ -300,20 +303,21 @@ def stock_detail_api(request, ticker):
                 
                 pub_time = data.get('providerPublishTime', data.get('pubDate', None))
                 
-                # Date Formatting
                 date_str = ""
+                timestamp = 0
                 if pub_time:
                     try:
                         if isinstance(pub_time, (int, float)):
+                            timestamp = pub_time
                             dt = datetime.fromtimestamp(pub_time)
                         else:
-                            dt = pd.to_datetime(pub_time) # Handles string ISO
+                            dt = pd.to_datetime(pub_time)
+                            timestamp = dt.timestamp()
                         date_str = dt.strftime('%Y-%m-%d %H:%M')
                     except Exception as e:
-                        print(f"Date parse error: {e}")
                         pass
-
-                # Translation
+                
+                # Simple Translate
                 try:
                     title_zh = translator.translate(title)
                 except:
@@ -323,10 +327,54 @@ def stock_detail_api(request, ticker):
                     'title': title_zh,
                     'link': link,
                     'publisher': publisher,
-                    'date': date_str
+                    'date': date_str,
+                    'timestamp': timestamp,
+                    'source': 'Yahoo'
                 })
     except Exception as e:
-        print(f"Error fetching news: {e}")
+        print(f"Error fetching YF news: {e}")
+        
+    # B. Fetch from Google News RSS
+    try:
+        # Simplify query logic
+        query_ticker = stock.ticker.replace('.TW', '')
+        if stock.market == 'TW':
+            query = f"{query_ticker} 股價 新聞"
+        else:
+            query = f"{query_ticker} stock news technology"
+            
+        encoded_query = requests.utils.quote(query)
+        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+        
+        feed = feedparser.parse(rss_url)
+        
+        for entry in feed.entries[:5]: 
+             if any(n['link'] == entry.link for n in news_list): continue
+             
+             timestamp = 0
+             date_str = ""
+             if hasattr(entry, 'published_parsed'):
+                 timestamp = time.mktime(entry.published_parsed)
+                 dt = datetime.fromtimestamp(timestamp)
+                 date_str = dt.strftime('%Y-%m-%d %H:%M')
+             
+             publisher = entry.source.title if hasattr(entry, 'source') else 'Google News'
+             
+             news_list.append({
+                'title': entry.title,
+                'link': entry.link,
+                'publisher': publisher,
+                'date': date_str,
+                'timestamp': timestamp,
+                'source': 'GoogleRSS'
+             })
+             
+    except Exception as e:
+         print(f"Error fetching RSS: {e}")
+
+    # Sort
+    news_list.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+    news_list = news_list[:10]
 
     # 3. Description Handling (Robust Cleaning)
     description_zh = "暫無描述"
