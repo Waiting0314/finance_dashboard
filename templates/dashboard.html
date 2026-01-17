@@ -120,8 +120,7 @@
                         <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-1/4">代號 / 名稱
                         </th>
                         <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">財務資訊</th>
-                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">現價
-                            (TWD)</th>
+                        <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">現價</th>
                         <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">
                             漲跌幅</th>
                         <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">
@@ -162,11 +161,15 @@
                         </td>
                         <td class="px-6 py-5 text-right">
                             {% if item.stock.last_price %}
-                            <div class="font-bold text-gray-900 text-base">{{ item.stock.last_price }}</div>
+                            <div class="font-bold text-gray-900 text-base">
+                                <span class="text-gray-400 font-normal text-sm">{% if item.stock.market == 'TW' %}NT${% else %}${% endif %}</span>
+                                {{ item.stock.last_price }}
+                            </div>
                             {% else %}
                             <div class="text-gray-400 text-sm">--</div>
                             {% endif %}
                         </td>
+
                         <td class="px-6 py-5 text-right">
                             {% if item.stock.change > 0 %}
                                 {% if item.stock.change_percent >= 8 %}
@@ -280,7 +283,11 @@
                 </div>
                 <div class="mb-4">
                     <h3 class="text-lg font-bold text-gray-900 truncate">{{ item.stock.short_name|default:item.stock.name|default:item.stock.ticker }}</h3>
-                    <div class="text-3xl font-bold text-gray-900 mt-2">{{ item.stock.last_price|default:"--" }}</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-2">
+                        <span class="text-gray-400 font-normal text-lg">{% if item.stock.market == 'TW' %}NT${% else %}${% endif %}</span>
+                        {{ item.stock.last_price|default:"--" }}
+                    </div>
+
                     <div class="mt-2 flex flex-col gap-0.5 text-xs text-gray-500">
                         {% if item.stock.last_revenue %}
                         <div>Rev: <span class="font-medium text-gray-700">{{ item.stock.last_revenue|format_revenue }}</span></div>

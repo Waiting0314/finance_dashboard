@@ -3,39 +3,57 @@ services:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
     environment:
-      - POSTGRES_DB=stock_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-stock_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   web:
     build: .
-    command: gunicorn stock_dashboard.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn stock_dashboard.wsgi:application --bind 0.0.0.0:8000 --timeout 120"
     volumes:
       - .:/app
     ports:
       - "8088:8000"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/stock_db
-      - SECRET_KEY=your-secret-key-here
-      - DEBUG=1
+      - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-stock_db}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DEBUG=${DEBUG:-1}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   worker:
     build: .
-    command: python manage.py process_tasks
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py process_tasks"
     volumes:
       - .:/app
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgres://postgres:postgres@db:5432/stock_db
-      - SECRET_KEY=your-secret-key-here
-      - DEBUG=1
+      - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-stock_db}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DEBUG=${DEBUG:-1}
     depends_on:
-      - db
-      - web
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
 
 volumes:
   postgres_data:

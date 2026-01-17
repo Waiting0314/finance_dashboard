@@ -9,3 +9,4 @@ psycopg2-binary
 dj-database-url
 deep-translator
 FinMind
+tqdm

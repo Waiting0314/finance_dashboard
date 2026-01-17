@@ -11,14 +11,47 @@
 *   **使用者系統**: 支援使用者註冊、登入、登出及 Email 驗證。
 *   **股票追蹤清單**: 使用者可以新增或移除股票到自己的追蹤清單。
 *   **背景任務**: 使用 `django-background-tasks` 定期更新股價資料。
+*   **多幣值支援**: 台股自動顯示 NT$、美股顯示 $。
+
+## 快速上手 (Quick Start)
+
+部署完成後，請按照以下步驟開始使用：
+
+### 1️⃣ 註冊帳號
+訪問 `http://localhost:8088/users/signup/` 建立新帳號。
+
+### 2️⃣ 登入系統
+使用剛才建立的帳號登入 `http://localhost:8088/users/login/`。
+
+### 3️⃣ 新增股票到自選股
+1. 登入後會看到「自選股清單」頁面
+2. 點擊右上角的 **「+ 新增股票」** 按鈕
+3. 選擇市場（台股/美股）
+4. 輸入股票代號（例如：`2330` 或 `AAPL`）
+5. 點擊「加入自選股」
+
+### 4️⃣ 查看儀表板
+- 儀表板會顯示您追蹤的所有股票
+- 可切換「列表」或「卡片」檢視模式
+- 點擊任一股票可進入詳細頁面，查看 K 線圖、財務指標和新聞
+
+> **小提示**: 台股代號格式為 `2330`（系統會自動加上 `.TW`），美股直接輸入如 `AAPL`。
 
 ## 預覽 (Preview)
 
-### 介面設計 (Light Theme UI)
+### 功能展示動畫
 
-![Light Theme Preview](docs/light_theme_verification.png)
+![功能展示](docs/feature_demo.webp)
 
-> 您也可以直接查看 `docs/verify_light_theme.html` 檔案以檢查 HTML 結構與樣式。
+> 動畫展示：登入 → 新增股票 → 儀表板顯示
+
+### 登入頁面
+
+![登入頁面](docs/login_screenshot.png)
+
+### 儀表板
+
+![儀表板](docs/dashboard_screenshot.png)
 
 ## 技術棧 (Tech Stack)
 
@@ -41,18 +74,37 @@
    * `DATABASE_URL`: 若平台未自動提供，請設定資料庫連線字串。
 4. **Deploy**: 平台將自動偵測並部署 Web (Gunicorn) 與 Worker (Background Tasks)。
 
-### 選項 B: Docker Compose
+### 選項 B: Docker Compose（一鍵部署 🚀）
 
 ```bash
-# 啟動服務 (Web, DB, Worker)
-docker compose up --build
+# 1. 複製環境變數範例檔（可選，預設值可直接使用）
+cp .env.example .env
 
-# 初始化資料庫 (首次啟動)
-docker compose exec web python manage.py migrate
+# 2. 啟動所有服務（自動執行資料庫遷移）
+docker compose up -d
 
-# 訪問網站
-http://127.0.0.1:8000/
+# 3. 訪問網站
+# http://localhost:8088/
 ```
+
+> **說明**: 首次啟動時，系統會自動建立資料庫並執行遷移，無需手動操作。
+
+#### 其他 Docker 常用指令
+
+```bash
+# 查看服務狀態
+docker compose ps
+
+# 查看 Worker 日誌
+docker compose logs -f worker
+
+# 停止服務
+docker compose down
+
+# 停止服務並清除資料
+docker compose down -v
+```
+
 
 ### 選項 C: 本地開發 (Local Development)
 

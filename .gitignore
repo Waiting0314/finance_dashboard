@@ -15,3 +15,7 @@ sent_emails/
 
 # My temporary files
 jules-scratch/
+
+# 環境變數
+.env
+!.env.example

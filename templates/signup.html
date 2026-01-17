@@ -1,12 +1,307 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="zh-Hant">
 
-{% block title %}註冊 - 股票分析平台{% endblock %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>註冊 - 股票分析平台</title>
+    <style>
+        :root {
+            --primary-color: #0a2540;
+            --secondary-color: #0056b3;
+            --bg-color: #f4f6f8;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --light-text: #666;
+            --highlight-color: #3b82f6;
+            --success-color: #00bfa5;
+            --danger-color: #ef4444;
+            --border-color: #eaeaea;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
 
-{% block content %}
-  <h2>註冊新帳號</h2>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">註冊</button>
-  </form>
-{% endblock %}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 50%, #fce7f3 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .signup-container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .signup-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: 40px;
+            border: 1px solid var(--border-color);
+        }
+
+        .signup-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: #fff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.5rem;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            letter-spacing: -0.5px;
+        }
+
+        .signup-header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .signup-header p {
+            color: var(--light-text);
+            font-size: 0.95rem;
+        }
+
+        /* Django Form Styling */
+        .django-form p {
+            margin-bottom: 16px;
+        }
+
+        .django-form label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-color);
+            margin-bottom: 8px;
+        }
+
+        .django-form input[type="text"],
+        .django-form input[type="password"],
+        .django-form input[type="email"] {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background: #fff;
+        }
+
+        .django-form input[type="text"]:focus,
+        .django-form input[type="password"]:focus,
+        .django-form input[type="email"]:focus {
+            outline: none;
+            border-color: var(--highlight-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .django-form .helptext {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--light-text);
+            margin-top: 4px;
+        }
+
+        .django-form .helptext ul {
+            margin: 4px 0 0 16px;
+            padding: 0;
+        }
+
+        .django-form .helptext li {
+            margin-bottom: 2px;
+        }
+
+        .django-form .errorlist {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 16px 0;
+        }
+
+        .django-form .errorlist li {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-bottom: 8px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(0, 191, 165, 0.3);
+            margin-top: 8px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 191, 165, 0.4);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .signup-footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .signup-footer p {
+            color: var(--light-text);
+            font-size: 0.875rem;
+        }
+
+        .signup-footer a {
+            color: var(--highlight-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .signup-footer a:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+        }
+
+        /* Features Preview */
+        .features-list {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .features-list h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 12px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--light-text);
+            margin-bottom: 8px;
+        }
+
+        .feature-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .feature-icon {
+            font-size: 1.1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .signup-card {
+                padding: 30px 24px;
+            }
+            
+            .logo-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 1.25rem;
+            }
+            
+            .logo-text {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="signup-container">
+        <div class="signup-card">
+            <div class="signup-header">
+                <div class="logo-container">
+                    <div class="logo-icon">📈</div>
+                    <span class="logo-text">股票分析平台</span>
+                </div>
+                <h1>建立新帳號</h1>
+                <p>免費加入，開始追蹤您的投資組合</p>
+            </div>
+
+            <div class="features-list">
+                <h3>✨ 加入後您可以：</h3>
+                <div class="feature-item">
+                    <span class="feature-icon">📊</span>
+                    <span>追蹤台股、美股即時報價</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📈</span>
+                    <span>查看 K 線圖與技術指標</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">📰</span>
+                    <span>獲取最新財經新聞</span>
+                </div>
+            </div>
+
+            <form method="post" class="django-form">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="submit-btn">建立帳號</button>
+            </form>
+
+            <div class="signup-footer">
+                <p>已有帳號？<a href="{% url 'login' %}">立即登入</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
