@@ -44,3 +44,13 @@ def activate(request, uidb64, token):
         return redirect('login')
     else:
         return render(request, 'account_activation_invalid.html')
+
+from django.contrib.auth import logout
+
+def custom_logout(request):
+    """
+    Custom logout view that supports GET requests to prevent 405 errors.
+    In Django 5.0, the default LogoutView only supports POST.
+    """
+    logout(request)
+    return redirect('login')

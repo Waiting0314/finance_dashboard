@@ -18,10 +18,14 @@
 部署完成後，請按照以下步驟開始使用：
 
 ### 1️⃣ 註冊帳號
-訪問 `http://localhost:8088/users/signup/` 建立新帳號。
+訪問註冊頁面 `http://localhost:8088/users/signup/` 建立新帳號。
+
+![註冊頁面](docs/signup_screenshot.png)
 
 ### 2️⃣ 登入系統
-使用剛才建立的帳號登入 `http://localhost:8088/users/login/`。
+使用剛才建立的帳號登入。
+
+![登入頁面](docs/login_screenshot.png)
 
 ### 3️⃣ 新增股票到自選股
 1. 登入後會看到「自選股清單」頁面
