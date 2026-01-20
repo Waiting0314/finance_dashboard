@@ -232,20 +232,27 @@ def fetch_stock_data_sync(ticker):
              if len(stock_data) >= 2:
                  previous_close = stock_data.iloc[-2]['Close']
 
-        for index, row in stock_data.iterrows():
-            if isinstance(index, pd.Timestamp):
-                date = index.date()
-                StockPrice.objects.update_or_create(
+        stock_prices_to_create = []
+        for row in stock_data.itertuples():
+            if isinstance(row.Index, pd.Timestamp):
+                date = row.Index.date()
+                stock_prices_to_create.append(StockPrice(
                     stock=stock_obj,
                     date=date,
-                    defaults={
-                        'open': float(row['Open']),
-                        'high': float(row['High']),
-                        'low': float(row['Low']),
-                        'close': float(row['Close']),
-                        'volume': int(row['Volume'])
-                    }
-                )
+                    open=float(row.Open),
+                    high=float(row.High),
+                    low=float(row.Low),
+                    close=float(row.Close),
+                    volume=int(row.Volume)
+                ))
+
+        if stock_prices_to_create:
+            StockPrice.objects.bulk_create(
+                stock_prices_to_create,
+                update_conflicts=True,
+                unique_fields=['stock', 'date'],
+                update_fields=['open', 'high', 'low', 'close', 'volume']
+            )
         
         # Update Real-time stats on Stock model
         # Try to use yfinance info for more up-to-date price/change first
