@@ -796,6 +796,301 @@
                     }
                 }
 
+                // 6. 財務數據圖表渲染
+                if (data.financial_data) {
+                    const finData = data.financial_data;
+                    const isTWStock = ticker.endsWith('.TW');
+                    
+                    // 更新資料來源標籤
+                    function updateSourceBadge(elementId, sources) {
+                        const badge = document.getElementById(elementId);
+                        if (badge && sources && sources.length > 0) {
+                            const sourceText = sources.join(', ');
+                            badge.textContent = sourceText;
+                            badge.style.background = '#e0f2fe';
+                            badge.style.color = '#0369a1';
+                            badge.style.padding = '2px 8px';
+                            badge.style.borderRadius = '4px';
+                            badge.style.fontSize = '0.75rem';
+                            badge.style.marginLeft = '8px';
+                        }
+                    }
+                    
+                    // 6.1 月營收圖表（台股）
+                    const revenueSection = document.getElementById('monthly-revenue-section');
+                    const revenueDom = document.getElementById('chart-monthly-revenue');
+                    
+                    if (!isTWStock) {
+                        if (revenueSection) revenueSection.style.display = 'none';
+                    } else if (finData.monthly_revenue && finData.monthly_revenue.length > 0) {
+                        updateSourceBadge('revenue-source-badge', ['FinMind']);
+                        
+                        const revData = finData.monthly_revenue;
+                        const dates = revData.map(d => `${d.year}/${d.month}`);
+                        const revenues = revData.map(d => d.revenue / 100000000); // 轉為億元
+                        
+                        const revenueChart = echarts.init(revenueDom);
+                        const revenueOption = {
+                            tooltip: {
+                                trigger: 'axis',
+                                formatter: function(params) {
+                                    const p = params[0];
+                                    return `${p.name}<br/>營收: ${(p.value).toFixed(2)} 億元`;
+                                }
+                            },
+                            grid: { left: '3%', right: '4%', bottom: '10%', top: '15%', containLabel: true },
+                            xAxis: {
+                                type: 'category',
+                                data: dates,
+                                axisLabel: { fontSize: 10, rotate: 45 }
+                            },
+                            yAxis: {
+                                type: 'value',
+                                name: '億元',
+                                axisLabel: { formatter: val => val.toFixed(0) }
+                            },
+                            series: [{
+                                name: '月營收',
+                                type: 'bar',
+                                data: revenues,
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: '#667eea' },
+                                        { offset: 1, color: '#764ba2' }
+                                    ])
+                                },
+                                label: {
+                                    show: revenues.length <= 12,
+                                    position: 'top',
+                                    formatter: p => p.value.toFixed(1),
+                                    fontSize: 10
+                                }
+                            }]
+                        };
+                        revenueChart.setOption(revenueOption);
+                        window.addEventListener('resize', () => revenueChart.resize());
+                    } else {
+                        revenueDom.innerHTML = '<p style="text-align:center; padding-top:100px; color:#999;">暫無月營收資料</p>';
+                    }
+                    
+                    // 6.2 PE/PB 走勢圖表
+                    const perpbrSection = document.getElementById('perpbr-section');
+                    const perpbrDom = document.getElementById('chart-per-pbr');
+                    
+                    if (finData.per_pbr && finData.per_pbr.length > 0) {
+                        const sources = finData.data_sources.filter(s => s.includes('perpbr'));
+                        updateSourceBadge('perpbr-source-badge', sources.length > 0 ? sources : ['來源驗證中']);
+                        
+                        const ppData = finData.per_pbr;
+                        const dates = ppData.map(d => d.date);
+                        const peData = ppData.map(d => d.pe);
+                        const pbData = ppData.map(d => d.pb);
+                        
+                        const perpbrChart = echarts.init(perpbrDom);
+                        const perpbrOption = {
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: { type: 'cross' }
+                            },
+                            legend: { data: ['PE', 'PB'], top: 0 },
+                            grid: { left: '3%', right: '10%', bottom: '15%', top: '15%', containLabel: true },
+                            xAxis: {
+                                type: 'category',
+                                data: dates,
+                                axisLabel: { fontSize: 10, rotate: 45, interval: Math.floor(dates.length / 10) }
+                            },
+                            yAxis: [
+                                { type: 'value', name: 'PE', position: 'left' },
+                                { type: 'value', name: 'PB', position: 'right' }
+                            ],
+                            dataZoom: [
+                                { type: 'inside', start: 50, end: 100 },
+                                { type: 'slider', bottom: 0, start: 50, end: 100, height: 20 }
+                            ],
+                            series: [
+                                {
+                                    name: 'PE',
+                                    type: 'line',
+                                    data: peData,
+                                    smooth: true,
+                                    lineStyle: { color: '#0ea5e9', width: 2 },
+                                    areaStyle: {
+                                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                            { offset: 0, color: 'rgba(14, 165, 233, 0.3)' },
+                                            { offset: 1, color: 'rgba(14, 165, 233, 0.05)' }
+                                        ])
+                                    }
+                                },
+                                {
+                                    name: 'PB',
+                                    type: 'line',
+                                    yAxisIndex: 1,
+                                    data: pbData,
+                                    smooth: true,
+                                    lineStyle: { color: '#f59e0b', width: 2 }
+                                }
+                            ]
+                        };
+                        perpbrChart.setOption(perpbrOption);
+                        window.addEventListener('resize', () => perpbrChart.resize());
+                    } else if (!isTWStock && finData.key_metrics) {
+                        // 美股：顯示簡單的 PE/PB 指標而非走勢圖
+                        const km = finData.key_metrics;
+                        perpbrDom.innerHTML = `
+                            <div style="display: flex; justify-content: space-around; align-items: center; height: 100%; padding: 20px;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 2.5rem; font-weight: bold; color: #0ea5e9;">${km.pe_ratio ? km.pe_ratio.toFixed(2) : 'N/A'}</div>
+                                    <div style="color: #64748b; margin-top: 8px;">PE Ratio</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 2.5rem; font-weight: bold; color: #f59e0b;">${km.price_to_book ? km.price_to_book.toFixed(2) : 'N/A'}</div>
+                                    <div style="color: #64748b; margin-top: 8px;">P/B Ratio</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 2.5rem; font-weight: bold; color: #22c55e;">${km.peg_ratio ? km.peg_ratio.toFixed(2) : 'N/A'}</div>
+                                    <div style="color: #64748b; margin-top: 8px;">PEG Ratio</div>
+                                </div>
+                            </div>`;
+                        updateSourceBadge('perpbr-source-badge', ['yfinance']);
+                    } else {
+                        perpbrDom.innerHTML = '<p style="text-align:center; padding-top:100px; color:#999;">暫無 PE/PB 資料</p>';
+                    }
+                    
+                    // 6.3 融資融券圖表（台股）
+                    const marginSection = document.getElementById('margin-trading-section');
+                    const marginDom = document.getElementById('chart-margin-trading');
+                    
+                    if (!isTWStock) {
+                        if (marginSection) marginSection.style.display = 'none';
+                    } else if (finData.margin_trading && finData.margin_trading.length > 0) {
+                        updateSourceBadge('margin-source-badge', ['FinMind']);
+                        
+                        const mgData = finData.margin_trading;
+                        const dates = mgData.map(d => d.date);
+                        const marginBalance = mgData.map(d => d.margin_balance / 1000); // 轉為張
+                        const shortBalance = mgData.map(d => d.short_balance / 1000);
+                        
+                        const marginChart = echarts.init(marginDom);
+                        const marginOption = {
+                            tooltip: {
+                                trigger: 'axis',
+                                formatter: function(params) {
+                                    let res = params[0].name + '<br/>';
+                                    params.forEach(p => {
+                                        res += `${p.marker} ${p.seriesName}: ${Math.round(p.value).toLocaleString()} 張<br/>`;
+                                    });
+                                    return res;
+                                }
+                            },
+                            legend: { data: ['融資餘額', '融券餘額'], top: 0 },
+                            grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
+                            xAxis: {
+                                type: 'category',
+                                data: dates,
+                                axisLabel: { fontSize: 10, rotate: 45, interval: Math.floor(dates.length / 10) }
+                            },
+                            yAxis: [
+                                { type: 'value', name: '融資(張)', position: 'left' },
+                                { type: 'value', name: '融券(張)', position: 'right' }
+                            ],
+                            dataZoom: [
+                                { type: 'inside', start: 50, end: 100 },
+                                { type: 'slider', bottom: 0, start: 50, end: 100, height: 20 }
+                            ],
+                            series: [
+                                {
+                                    name: '融資餘額',
+                                    type: 'line',
+                                    data: marginBalance,
+                                    smooth: true,
+                                    lineStyle: { color: '#ef4444', width: 2 },
+                                    areaStyle: {
+                                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                            { offset: 0, color: 'rgba(239, 68, 68, 0.3)' },
+                                            { offset: 1, color: 'rgba(239, 68, 68, 0.05)' }
+                                        ])
+                                    }
+                                },
+                                {
+                                    name: '融券餘額',
+                                    type: 'line',
+                                    yAxisIndex: 1,
+                                    data: shortBalance,
+                                    smooth: true,
+                                    lineStyle: { color: '#22c55e', width: 2 }
+                                }
+                            ]
+                        };
+                        marginChart.setOption(marginOption);
+                        window.addEventListener('resize', () => marginChart.resize());
+                    } else {
+                        marginDom.innerHTML = '<p style="text-align:center; padding-top:100px; color:#999;">暫無融資融券資料</p>';
+                    }
+                    
+                    // 6.4 美股關鍵指標（美股）
+                    const usMetricsSection = document.getElementById('us-key-metrics-section');
+                    const usMetricsGrid = document.getElementById('us-key-metrics-grid');
+                    
+                    if (isTWStock) {
+                        if (usMetricsSection) usMetricsSection.style.display = 'none';
+                    } else if (finData.key_metrics && Object.keys(finData.key_metrics).length > 0) {
+                        usMetricsSection.style.display = 'block';
+                        updateSourceBadge('us-metrics-source-badge', finData.data_sources);
+                        
+                        const km = finData.key_metrics;
+                        const formatPct = val => val ? (val * 100).toFixed(2) + '%' : 'N/A';
+                        const formatNum = val => val ? val.toFixed(2) : 'N/A';
+                        
+                        usMetricsGrid.innerHTML = `
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">ROE</div>
+                                <div class="us-metric-value">${formatPct(km.roe)}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">ROA</div>
+                                <div class="us-metric-value">${formatPct(km.roa)}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">毛利率</div>
+                                <div class="us-metric-value">${formatPct(km.gross_margin)}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">營業利益率</div>
+                                <div class="us-metric-value">${formatPct(km.operating_margin)}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">淨利率</div>
+                                <div class="us-metric-value">${formatPct(km.profit_margin)}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">負債權益比</div>
+                                <div class="us-metric-value">${km.debt_to_equity ? km.debt_to_equity.toFixed(1) + '%' : 'N/A'}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">營收成長率</div>
+                                <div class="us-metric-value">${formatPct(km.revenue_growth)}</div>
+                            </div>
+                            <div class="us-metric-card">
+                                <div class="us-metric-label">Beta</div>
+                                <div class="us-metric-value">${formatNum(km.beta)}</div>
+                            </div>
+                        `;
+                        
+                        // 顯示驗證警告（如果有）
+                        if (finData.validation_warnings && finData.validation_warnings.length > 0) {
+                            const warningsDiv = document.getElementById('validation-warnings');
+                            warningsDiv.style.display = 'block';
+                            warningsDiv.innerHTML = `
+                                <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 12px; margin-top: 16px;">
+                                    <strong style="color: #92400e;">⚠️ 資料驗證警告</strong>
+                                    <ul style="margin: 8px 0 0 20px; color: #78350f; font-size: 0.9rem;">
+                                        ${finData.validation_warnings.map(w => `<li>${w}</li>`).join('')}
+                                    </ul>
+                                </div>`;
+                        }
+                    }
+                }
+
             })
             .catch(err => {
                 console.error('Fetch Error:', err);
@@ -1435,6 +1730,74 @@
 
         .recent-table {
             font-size: 0.8em;
+        }
+    }
+</style>
+
+<style>
+    /* 美股關鍵指標 Grid */
+    .us-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
+
+    .us-metric-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .us-metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .us-metric-label {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+
+    .us-metric-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    /* 資料來源標籤 */
+    .data-source-badge {
+        display: inline-block;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-left: 8px;
+        font-weight: 500;
+    }
+
+    /* 財務圖表區塊樣式 */
+    .revenue-box h3,
+    .perpbr-box h3,
+    .margin-box h3,
+    .us-metrics-box h3 {
+        color: var(--primary-color);
+        border-left: 4px solid #667eea;
+        padding-left: 10px;
+        margin-bottom: 0;
+        font-size: 1.2em;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Mobile Responsive for US Metrics */
+    @media (max-width: 768px) {
+        .us-metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 </style>
