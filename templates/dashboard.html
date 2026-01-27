@@ -49,6 +49,47 @@
         </div>
 
         <div class="flex items-center gap-4">
+            <!-- 每頁顯示數量選擇 -->
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">每頁</span>
+                <div class="flex bg-gray-100 p-0.5 rounded-lg">
+                    <button onclick="changePerPage(10)" 
+                        class="px-2 py-1 text-xs font-medium rounded transition {% if per_page == 10 %}bg-white shadow-sm text-gray-800{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                        10
+                    </button>
+                    <button onclick="changePerPage(20)" 
+                        class="px-2 py-1 text-xs font-medium rounded transition {% if per_page == 20 %}bg-white shadow-sm text-gray-800{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                        20
+                    </button>
+                    <button onclick="changePerPage(50)" 
+                        class="px-2 py-1 text-xs font-medium rounded transition {% if per_page == 50 %}bg-white shadow-sm text-gray-800{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+                        50
+                    </button>
+                </div>
+            </div>
+
+            <div class="h-6 w-px bg-gray-200"></div>
+
+            <!-- 排序選單 -->
+            <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">排序</span>
+                <select id="sortSelect" onchange="changeSort()" 
+                    class="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    <option value="id-desc" {% if sort_by == 'id' and sort_order == 'desc' %}selected{% endif %}>加入時間 ↓</option>
+                    <option value="id-asc" {% if sort_by == 'id' and sort_order == 'asc' %}selected{% endif %}>加入時間 ↑</option>
+                    <option value="ticker-asc" {% if sort_by == 'ticker' and sort_order == 'asc' %}selected{% endif %}>代號 A→Z</option>
+                    <option value="ticker-desc" {% if sort_by == 'ticker' and sort_order == 'desc' %}selected{% endif %}>代號 Z→A</option>
+                    <option value="name-asc" {% if sort_by == 'name' and sort_order == 'asc' %}selected{% endif %}>名稱 A→Z</option>
+                    <option value="name-desc" {% if sort_by == 'name' and sort_order == 'desc' %}selected{% endif %}>名稱 Z→A</option>
+                    <option value="change_percent-desc" {% if sort_by == 'change_percent' and sort_order == 'desc' %}selected{% endif %}>漲幅高→低</option>
+                    <option value="change_percent-asc" {% if sort_by == 'change_percent' and sort_order == 'asc' %}selected{% endif %}>漲幅低→高</option>
+                    <option value="last_price-desc" {% if sort_by == 'last_price' and sort_order == 'desc' %}selected{% endif %}>股價高→低</option>
+                    <option value="last_price-asc" {% if sort_by == 'last_price' and sort_order == 'asc' %}selected{% endif %}>股價低→高</option>
+                </select>
+            </div>
+
+            <div class="h-6 w-px bg-gray-200"></div>
+
             <!-- Sync Button -->
             <button type="button" id="globalRefreshBtn"
                 class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm">
@@ -432,6 +473,25 @@
 </div>
 
 <script>
+    // 分頁數量變更
+    function changePerPage(num) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('per_page', num);
+        url.searchParams.delete('page'); // 重置到第一頁
+        window.location.href = url.toString();
+    }
+
+    // 排序變更
+    function changeSort() {
+        const select = document.getElementById('sortSelect');
+        const [sortBy, sortOrder] = select.value.split('-');
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort_by', sortBy);
+        url.searchParams.set('sort_order', sortOrder);
+        url.searchParams.delete('page'); // 重置到第一頁
+        window.location.href = url.toString();
+    }
+
     // View Switcher logic
     function switchView(view) {
         const gridView = document.getElementById('view-grid');

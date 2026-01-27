@@ -316,6 +316,248 @@ def fetch_stock_data_sync(ticker):
         print(f"Updated price stats for {ticker}: {stock_obj.last_price} ({stock_obj.change_percent}%)")
 
         print(f"Successfully updated data for {ticker}")
+        
+        # === 財務警示檢查 ===
+        check_financial_alerts(stock_obj)
+
+        # === 新聞抓取與情緒分析 (GPU) ===
+        try:
+             fetch_news_and_analyze(stock_obj)
+        except Exception as e:
+             print(f"Error fetching news for {ticker}: {e}")
 
     except Exception as e:
         print(f"An error occurred while fetching data for {ticker}: {e}")
+
+
+def check_financial_alerts(stock):
+    """
+    檢查財務指標是否有異常，並更新 alert_message
+    """
+    alerts = []
+    
+    # 1. 負債權益比 > 200% 高槓桿風險
+    if stock.debt_to_equity and stock.debt_to_equity > 200:
+        alerts.append(f"⚠️ 高財務槓桿：負債權益比達 {stock.debt_to_equity:.1f}%，顯示公司債務壓力較大")
+    
+    # 2. 速動比率 < 0.5 短期償債能力不足
+    if stock.quick_ratio and stock.quick_ratio < 0.5:
+        alerts.append(f"⚠️ 流動性風險：速動比率僅 {stock.quick_ratio:.2f}，短期償債能力可能不足")
+    
+    # 3. ROE 為負值
+    if stock.roe and stock.roe < 0:
+        roe_pct = stock.roe * 100
+        alerts.append(f"⚠️ 獲利警訊：ROE 為 {roe_pct:.2f}%，公司股東權益報酬呈現虧損")
+    
+    # 4. 自由現金流為負
+    if stock.free_cash_flow and stock.free_cash_flow < 0:
+        fcf_billions = stock.free_cash_flow / 1_000_000_000
+        alerts.append(f"⚠️ 現金流警訊：自由現金流為負 ({fcf_billions:.2f}B)，可能影響股利發放或再投資能力")
+    
+    # 5. 本益比過高 (> 50)
+    if stock.pe_ratio and stock.pe_ratio > 50:
+        alerts.append(f"⚠️ 估值偏高：本益比達 {stock.pe_ratio:.1f}，回本年限較長，需確認成長性是否支撐")
+    
+    # 6. 營業利益率為負
+    if stock.operating_margin and stock.operating_margin < 0:
+        op_margin_pct = stock.operating_margin * 100
+        alerts.append(f"⚠️ 本業虧損：營業利益率為 {op_margin_pct:.2f}%，本業經營處於虧損狀態")
+    
+    # 7. Beta 過高 (> 2) 波動風險
+    if stock.beta and stock.beta > 2:
+        alerts.append(f"⚠️ 高波動風險：Beta 值達 {stock.beta:.2f}，股價波動遠大於大盤")
+    
+    # 更新 alert_message
+    if alerts:
+        stock.alert_message = "\n".join(alerts)
+        print(f"[Alert] {stock.ticker} 有 {len(alerts)} 項財務警示")
+    else:
+        stock.alert_message = ""
+    
+    stock.save(update_fields=['alert_message'])
+
+    print(f"[Fetch] {stock.ticker} 資料更新完成")
+
+
+def fetch_news_and_analyze(stock):
+    """
+    抓取新聞並進行情緒分析，儲存至 StockNews
+    """
+    print(f"[News] 開始抓取 {stock.ticker} 新聞...")
+    
+    import feedparser
+    import requests
+    import time
+    from deep_translator import GoogleTranslator
+    from .models import StockNews
+    from datetime import timedelta
+    import pytz
+    
+    # 計算 30 天前的時間戳
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    thirty_days_ago_ts = thirty_days_ago.timestamp()
+    
+    news_list = []
+    translator = GoogleTranslator(source='auto', target='zh-TW')
+    
+    # 1. Yahoo Finance News
+    try:
+        yf_ticker = yf.Ticker(stock.ticker)
+        raw_news = yf_ticker.news
+        
+        if raw_news:
+            for item in raw_news[:25]:
+                data = item.get('content', item)
+                title = data.get('title', '')
+                if not title: continue
+                
+                link = data.get('link', data.get('clickThroughUrl', {}).get('url', '#'))
+                
+                # Check for duplication within this batch
+                if any(n['link'] == link for n in news_list): continue
+                
+                # Check if already exists in DB
+                if StockNews.objects.filter(stock=stock, link=link).exists():
+                    continue
+
+                publisher = 'Unknown'
+                if 'provider' in data and isinstance(data['provider'], dict):
+                     publisher = data['provider'].get('displayName', 'Unknown')
+                elif 'publisher' in data:
+                     publisher = data['publisher']
+                
+                pub_time = data.get('providerPublishTime', data.get('pubDate', None))
+                
+                dt_obj = datetime.now() # Default
+                timestamp = 0
+                
+                if pub_time:
+                    try:
+                        if isinstance(pub_time, (int, float)):
+                            timestamp = pub_time
+                            dt_obj = datetime.fromtimestamp(pub_time)
+                        else:
+                            dt_obj = pd.to_datetime(pub_time)
+                            timestamp = dt_obj.timestamp()
+                    except:
+                        pass
+                
+                # Filter old news
+                if timestamp > 0 and timestamp < thirty_days_ago_ts:
+                    continue
+                    
+                # Store original title for sentiment analysis
+                news_list.append({
+                    'original_title': title,
+                    'link': link,
+                    'publisher': publisher,
+                    'pub_date': dt_obj,
+                    'source': 'Yahoo'
+                })
+    except Exception as e:
+        print(f"[News] Error fetching Yahoo news for {stock.ticker}: {e}")
+
+    # 2. Google RSS News
+    try:
+        query_ticker = stock.ticker.replace('.TW', '')
+        query = ""
+        
+        if stock.market == 'TW':
+            # 台股策略：優先使用中文簡稱，若無則用代號
+            # 例如： "永豐金 新聞" 比 "2890 新聞" 準確且豐富
+            if stock.short_name:
+                query = f"{stock.short_name} 新聞"
+            else:
+                query = f"{query_ticker} 股價 新聞"
+        else:
+            # 美股策略：使用公司名稱 (去除 Inc/Corp 等) + Ticker + stock news
+            # 去除雜訊
+            clean_name = stock.name
+            for suffix in [', Inc.', ' Inc.', ', Corp.', ' Corp.', ' Company', ' Ltd.', ' PLC']:
+                if suffix in clean_name:
+                    clean_name = clean_name.replace(suffix, '')
+            
+            # 使用 OR 邏輯增加廣度 (如果 Google RSS 支援 OR，通常空格是 AND)
+            # 改用較為精確的組合作為 query
+            query = f"{clean_name} {query_ticker} stock news"
+            
+        print(f"[News] Searching Google RSS with query: {query}")
+            
+        encoded_query = requests.utils.quote(query)
+        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
+
+        
+        feed = feedparser.parse(rss_url)
+        
+        for entry in feed.entries[:30]:
+             if any(n['link'] == entry.link for n in news_list): continue
+             if StockNews.objects.filter(stock=stock, link=entry.link).exists(): continue
+             
+             timestamp = 0
+             dt_obj = datetime.now()
+             
+             if hasattr(entry, 'published_parsed'):
+                 timestamp = time.mktime(entry.published_parsed)
+                 dt_obj = datetime.fromtimestamp(timestamp)
+             
+             if timestamp > 0 and timestamp < thirty_days_ago_ts:
+                 continue
+             
+             publisher = entry.source.title if hasattr(entry, 'source') else 'Google News'
+             
+             news_list.append({
+                'original_title': entry.title,
+                'link': entry.link,
+                'publisher': publisher,
+                'pub_date': dt_obj,
+                'source': 'GoogleRSS'
+             })
+             
+    except Exception as e:
+        print(f"[News] Error fetching RSS for {stock.ticker}: {e}")
+
+    if not news_list:
+        print(f"[News] No new news found for {stock.ticker}")
+        return
+
+    # 3. Batch Sentiment Analysis
+    try:
+        from .sentiment import analyze_batch
+        original_titles = [n['original_title'] for n in news_list]
+        print(f"[Sentiment] Analyzing {len(original_titles)} news items for {stock.ticker}...")
+        sentiments = analyze_batch(original_titles) # This uses GPU if available
+    except Exception as e:
+        print(f"[Sentiment] Analysis failed: {e}")
+        sentiments = ['neutral'] * len(news_list)
+
+    # 4. Save to DB (with Translation)
+    count = 0
+    for i, item in enumerate(news_list):
+        try:
+            # Translate title to Traditional Chinese
+            try:
+                title_zh = translator.translate(item['original_title'])
+            except:
+                title_zh = item['original_title']
+            
+            # Make aware datetime
+            from django.utils.timezone import make_aware
+            try:
+                pub_date_aware = make_aware(item['pub_date'])
+            except:
+                pub_date_aware = item['pub_date']
+
+            StockNews.objects.create(
+                stock=stock,
+                title=title_zh,
+                link=item['link'],
+                publisher=item['publisher'],
+                pub_date=pub_date_aware,
+                sentiment=sentiments[i]
+            )
+            count += 1
+        except Exception as e:
+            print(f"[News] Error saving news item: {e}")
+            continue
+            
+    print(f"[News] Saved {count} new news items for {stock.ticker}")

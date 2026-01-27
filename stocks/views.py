@@ -58,10 +58,35 @@ def dashboard(request):
 
         return redirect('dashboard')
 
-    user_watchlist_qs = Watchlist.objects.filter(user=request.user).select_related('stock').order_by('-id')
+    # === 分頁數量與排序參數處理 ===
+    per_page = request.GET.get('per_page', '10')
+    try:
+        per_page = int(per_page)
+        if per_page not in [10, 20, 50]:
+            per_page = 10
+    except ValueError:
+        per_page = 10
+    
+    sort_by = request.GET.get('sort_by', 'id')
+    sort_order = request.GET.get('sort_order', 'desc')
+    
+    # 定義可排序欄位映射
+    sort_field_mapping = {
+        'ticker': 'stock__ticker',
+        'name': 'stock__name',
+        'change_percent': 'stock__change_percent',
+        'last_price': 'stock__last_price',
+        'id': 'id'
+    }
+    
+    order_field = sort_field_mapping.get(sort_by, 'id')
+    if sort_order == 'desc':
+        order_field = f'-{order_field}'
+    
+    user_watchlist_qs = Watchlist.objects.filter(user=request.user).select_related('stock').order_by(order_field)
 
-    # Pagination
-    paginator = Paginator(user_watchlist_qs, 9) # 9 items per page
+    # Pagination - 使用動態 per_page
+    paginator = Paginator(user_watchlist_qs, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -125,6 +150,10 @@ def dashboard(request):
         'watchlist': page_obj, # Pass page_obj as watchlist for iteration
         'stock_data_json': json.dumps(stock_data_for_chart),
         'loading_stocks_json': json.dumps(list(loading_stocks)),
+        # 分頁與排序參數
+        'per_page': per_page,
+        'sort_by': sort_by,
+        'sort_order': sort_order,
     }
     return render(request, 'dashboard.html', context)
 
@@ -275,106 +304,33 @@ def stock_detail_api(request, ticker):
                 san(item['Volume'])
             ])
 
-    # 2. News Handling
+    # 2. News Handling - 從 DB 讀取
+    from .models import StockNews
+    
+    # 取出 50 筆最新新聞
+    db_news = StockNews.objects.filter(stock=stock).order_by('-pub_date')[:50]
+    
     news_list = []
-    translator = GoogleTranslator(source='auto', target='zh-TW')
+    if db_news.exists():
+        for n in db_news:
+            news_list.append({
+                'title': n.title,
+                'link': n.link,
+                'publisher': n.publisher or 'Unknown',
+                'date': n.pub_date.strftime('%Y-%m-%d %H:%M'),
+                'timestamp': n.pub_date.timestamp(),
+                'sentiment': n.sentiment,
+                'source': 'DB'
+            })
+    else:
+        # 如果 DB 沒資料，可能是新加入的股票還沒跑完 Task
+        # Trigger task async if not running? 
+        # (Usually fetch_stock_data triggers on creation, so just wait)
+        print(f"No news in DB for {ticker}")
+        pass
 
-    # A. Fetch from Yahoo Finance
-    try:
-        raw_news = yf_ticker.news
-        if raw_news:
-            for item in raw_news[:3]:
-                # Access the actual data payload
-                data = item.get('content', item)
-                
-                title = data.get('title', '')
-                if not title: continue
-                
-                link = data.get('link', data.get('clickThroughUrl', {}).get('url', '#'))
-                
-                # Check for duplication
-                if any(n['link'] == link for n in news_list): continue
+    # (移除原本的即時抓取與情緒分析代碼)
 
-                publisher = 'Unknown'
-                if 'provider' in data and isinstance(data['provider'], dict):
-                     publisher = data['provider'].get('displayName', 'Unknown')
-                elif 'publisher' in data:
-                     publisher = data['publisher']
-                
-                pub_time = data.get('providerPublishTime', data.get('pubDate', None))
-                
-                date_str = ""
-                timestamp = 0
-                if pub_time:
-                    try:
-                        if isinstance(pub_time, (int, float)):
-                            timestamp = pub_time
-                            dt = datetime.fromtimestamp(pub_time)
-                        else:
-                            dt = pd.to_datetime(pub_time)
-                            timestamp = dt.timestamp()
-                        date_str = dt.strftime('%Y-%m-%d %H:%M')
-                    except Exception as e:
-                        pass
-                
-                # Simple Translate
-                try:
-                    title_zh = translator.translate(title)
-                except:
-                    title_zh = title
-
-                news_list.append({
-                    'title': title_zh,
-                    'link': link,
-                    'publisher': publisher,
-                    'date': date_str,
-                    'timestamp': timestamp,
-                    'source': 'Yahoo'
-                })
-    except Exception as e:
-        print(f"Error fetching YF news: {e}")
-        
-    # B. Fetch from Google News RSS
-    try:
-        # Simplify query logic
-        query_ticker = stock.ticker.replace('.TW', '')
-        if stock.market == 'TW':
-            query = f"{query_ticker} 股價 新聞"
-        else:
-            query = f"{query_ticker} stock news technology"
-            
-        encoded_query = requests.utils.quote(query)
-        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant"
-        
-        feed = feedparser.parse(rss_url)
-        
-        for entry in feed.entries[:5]: 
-             if any(n['link'] == entry.link for n in news_list): continue
-             
-             timestamp = 0
-             date_str = ""
-             if hasattr(entry, 'published_parsed'):
-                 timestamp = time.mktime(entry.published_parsed)
-                 dt = datetime.fromtimestamp(timestamp)
-                 date_str = dt.strftime('%Y-%m-%d %H:%M')
-             
-             publisher = entry.source.title if hasattr(entry, 'source') else 'Google News'
-             
-             news_list.append({
-                'title': entry.title,
-                'link': entry.link,
-                'publisher': publisher,
-                'date': date_str,
-                'timestamp': timestamp,
-                'source': 'GoogleRSS'
-             })
-             
-    except Exception as e:
-         print(f"Error fetching RSS: {e}")
-
-    # Sort
-    news_list.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
-    news_list = news_list[:10]
 
     # 3. Description Handling (Robust Cleaning)
     description_zh = "暫無描述"
@@ -422,13 +378,103 @@ def stock_detail_api(request, ticker):
         print(f"Error handling description: {e}")
         description_zh = stock.description if stock.description else "暫無描述"
 
+    # 4. 三大法人資料（僅台股）
+    institutional_data = None  # None 表示此市場不支援
+    if stock.ticker.endswith('.TW'):
+        from .data_sources import get_tw_institutional_investors
+        institutional_data = get_tw_institutional_investors(stock.ticker, days=60)
+
+    # 5. 財務數據（多來源）
+    financial_data = {
+        'monthly_revenue': [],
+        'per_pbr': [],
+        'margin_trading': [],
+        'key_metrics': {},
+        'data_sources': []
+    }
+    
+    if stock.ticker.endswith('.TW'):
+        # 台股財務數據
+        from .data_sources import (
+            get_tw_monthly_revenue_finmind,
+            get_tw_per_pbr_finmind,
+            get_tw_per_pbr_twse,
+            get_tw_margin_trading_finmind,
+            validate_and_merge_metrics
+        )
+        
+        # 月營收
+        revenue_data = get_tw_monthly_revenue_finmind(stock.ticker, months=24)
+        if revenue_data:
+            financial_data['monthly_revenue'] = revenue_data
+            financial_data['data_sources'].append('finmind_revenue')
+        
+        # PE/PB（雙來源驗證）
+        per_pbr_finmind = get_tw_per_pbr_finmind(stock.ticker, days=365)
+        per_pbr_twse = get_tw_per_pbr_twse(stock.ticker)
+        
+        # 合併資料（優先使用 FinMind，TWSE 作為補充）
+        if per_pbr_finmind:
+            financial_data['per_pbr'] = per_pbr_finmind[-90:]  # 最近 90 天
+            financial_data['data_sources'].append('finmind_perpbr')
+        elif per_pbr_twse:
+            financial_data['per_pbr'] = per_pbr_twse
+            financial_data['data_sources'].append('twse_perpbr')
+        
+        # 如果兩個來源都有資料，驗證最新一筆
+        if per_pbr_finmind and per_pbr_twse:
+            latest_fm = per_pbr_finmind[-1] if per_pbr_finmind else {}
+            latest_twse = per_pbr_twse[-1] if per_pbr_twse else {}
+            validation = validate_and_merge_metrics(latest_fm, latest_twse)
+            if validation.get('validation_warnings'):
+                financial_data['validation_warnings'] = validation['validation_warnings']
+        
+        # 融資融券（領先指標）
+        margin_data = get_tw_margin_trading_finmind(stock.ticker, days=90)
+        if margin_data:
+            financial_data['margin_trading'] = margin_data
+            financial_data['data_sources'].append('finmind_margin')
+    
+    else:
+        # 美股財務數據
+        from .data_sources import (
+            get_us_key_metrics_yfinance,
+            get_us_financials_sec_edgar,
+            get_us_metrics_alpha_vantage,
+            validate_and_merge_metrics
+        )
+        
+        # yfinance 關鍵指標
+        yf_metrics = get_us_key_metrics_yfinance(stock.ticker)
+        if yf_metrics:
+            financial_data['key_metrics'] = yf_metrics
+            financial_data['data_sources'].append('yfinance')
+        
+        # SEC EDGAR 財務數據（備援驗證）
+        sec_data = get_us_financials_sec_edgar(stock.ticker)
+        if sec_data and sec_data.get('revenue'):
+            financial_data['sec_edgar'] = sec_data
+            financial_data['data_sources'].append('sec_edgar')
+        
+        # Alpha Vantage（第三來源）
+        av_metrics = get_us_metrics_alpha_vantage(stock.ticker)
+        if av_metrics and av_metrics.get('pe_ratio'):
+            # 驗證 yfinance vs Alpha Vantage
+            if yf_metrics:
+                validation = validate_and_merge_metrics(yf_metrics, av_metrics)
+                if validation.get('validation_warnings'):
+                    financial_data['validation_warnings'] = validation['validation_warnings']
+            financial_data['data_sources'].append('alpha_vantage')
+
     return JsonResponse({
         'intraday_data': intraday_data,
         'historical_data': stock_data_list,
         'news': news_list,
         'description': description_zh,
-        'current_price': stock_data_list[-1][2] if stock_data_list else 0, # Approximate from history if needed
-        'prev_close': stock_data_list[-2][2] if len(stock_data_list) > 1 else 0
+        'current_price': stock_data_list[-1][2] if stock_data_list else 0,
+        'prev_close': stock_data_list[-2][2] if len(stock_data_list) > 1 else 0,
+        'institutional_investors': institutional_data,
+        'financial_data': financial_data,
     })
 
 @login_required

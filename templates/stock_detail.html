@@ -13,7 +13,15 @@
     <!-- Top Section: Header & Price Card -->
     <div class="detail-header">
         <div class="stock-title">
-            <h2>{{ stock.short_name|default:stock.name }} <span class="ticker-badge">{{ stock.ticker }}</span></h2>
+            <h2>{{ stock.short_name|default:stock.name }} <span class="ticker-badge">{{ stock.ticker }}</span>
+                {% if stock.alert_message %}
+                <button onclick="openAlertModal()" class="alert-icon-btn" title="財務警示">
+                    <svg class="alert-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                </button>
+                {% endif %}
+            </h2>
             <div class="market-badge">
                 {{ stock.get_market_display }}
                 {% if is_trading %}
@@ -58,43 +66,142 @@
                 <div id="chart-historical" style="width: 100%; height: 500px;"></div>
             </div>
 
-            <div class="card-box info-box" style="margin-top: 20px;">
-                <h3>公司簡介</h3>
-                <div class="description" style="white-space: pre-wrap; line-height: 1.6; color: #444;">{{
-                    stock.description|default:"暫無簡介" }}</div>
+            <!-- 三大法人買賣超區塊 - 移至公司簡介上方 -->
+            <div class="card-box collapsible institutional-box" style="margin-top: 20px;">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>三大法人買賣超</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div id="chart-institutional" style="width: 100%; height: 350px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="animate-spin" style="width: 24px; height: 24px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            載入中...
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Recent Trading Activity -->
-            <div class="card-box recent-data-box" style="margin-top: 30px;">
-                <h3>近期交易明細</h3>
-                <table class="recent-table">
-                    <thead>
-                        <tr>
-                            <th>日期</th>
-                            <th>開盤</th>
-                            <th>最高</th>
-                            <th>最低</th>
-                            <th>收盤</th>
-                            <th>成交量</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for price in recent_prices %}
-                        <tr>
-                            <td>{{ price.date|date:"Y-m-d" }}</td>
-                            <td>{{ price.open }}</td>
-                            <td>{{ price.high }}</td>
-                            <td>{{ price.low }}</td>
-                            <td style="font-weight: bold; color: {% if price.close >= price.open %}#e11d48{% else %}#059669{% endif %};">{{ price.close }}</td>
-                            <td>{{ price.volume }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" style="text-align: center; color: #999;">暫無近期數據</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- 月營收圖表（台股專用） -->
+            <div class="card-box collapsible revenue-box" style="margin-top: 20px;" id="monthly-revenue-section">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>月營收 <span class="data-source-badge" id="revenue-source-badge"></span></h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div id="chart-monthly-revenue" style="width: 100%; height: 320px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="animate-spin" style="width: 24px; height: 24px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            載入中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PE/PB 走勢圖表 -->
+            <div class="card-box collapsible perpbr-box" style="margin-top: 20px;" id="perpbr-section">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>PE/PB 走勢 <span class="data-source-badge" id="perpbr-source-badge"></span></h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div id="chart-per-pbr" style="width: 100%; height: 320px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="animate-spin" style="width: 24px; height: 24px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            載入中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 融資融券圖表（台股專用） -->
+            <div class="card-box collapsible margin-box" style="margin-top: 20px;" id="margin-trading-section">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>融資融券 <span class="data-source-badge" id="margin-source-badge"></span></h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div id="chart-margin-trading" style="width: 100%; height: 320px;">
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">
+                            <svg class="animate-spin" style="width: 24px; height: 24px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            載入中...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 美股關鍵指標摘要（美股專用） -->
+            <div class="card-box collapsible us-metrics-box" style="margin-top: 20px; display: none;" id="us-key-metrics-section">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>關鍵財務指標 <span class="data-source-badge" id="us-metrics-source-badge"></span></h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div id="us-key-metrics-grid" class="us-metrics-grid">
+                        載入中...
+                    </div>
+                    <div id="validation-warnings" class="validation-warnings" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div class="card-box collapsible info-box" style="margin-top: 20px;">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>公司簡介</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div class="description" style="white-space: pre-wrap; line-height: 1.6; color: #444;">{{ stock.description|default:"暫無簡介" }}</div>
+                </div>
+            </div>
+
+            <!-- 近期交易活動 - 可收放 -->
+            <div class="card-box collapsible recent-data-box" style="margin-top: 30px;">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>近期交易明細</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <table class="recent-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>開盤</th>
+                                <th>最高</th>
+                                <th>最低</th>
+                                <th>收盤</th>
+                                <th>成交量</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for price in recent_prices %}
+                            <tr>
+                                <td>{{ price.date|date:"Y-m-d" }}</td>
+                                <td>{{ price.open }}</td>
+                                <td>{{ price.high }}</td>
+                                <td>{{ price.low }}</td>
+                                <td style="font-weight: bold; color: {% if price.close >= price.open %}#e11d48{% else %}#059669{% endif %};">{{ price.close }}</td>
+                                <td>{{ price.volume }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: #999;">暫無近期數據</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -246,28 +353,32 @@
                 </div>
             </div>
 
-            <!-- News Section -->
-            <div class="card-box news-box" style="margin-top: 30px;">
-                <h3>相關新聞</h3>
-                <div id="news-wrapper">
-                    {% if news_items %}
-                    <ul class="news-list">
-                        {% for news in news_items %}
-                        <li class="news-item">
-                            <a href="{{ news.link }}" target="_blank" class="news-title">{{ news.title }}</a>
-                            <div class="news-meta">
-                                <span>{{ news.publisher }}</span>
-                                {% if news.date %}
-                                <span>{{ news.date }}</span>
-                                {% endif %}
-                            </div>
-                            <p class="news-summary">{{ news.summary|truncatechars:100 }}</p>
-                        </li>
-                        {% endfor %}
-                    </ul>
-                    {% else %}
-                    <p class="no-news">暫無相關新聞</p>
-                    {% endif %}
+            <!-- News Section - 支援分頁與情緒分析 -->
+            <div class="card-box collapsible news-box" style="margin-top: 30px;">
+                <div class="card-header" onclick="toggleCard(this)">
+                    <h3>相關新聞 <span id="news-count" class="news-count-badge"></span></h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="card-content">
+                    <div id="news-wrapper">
+                        <div style="display: flex; align-items: center; justify-content: center; padding: 40px; color: #94a3b8;">
+                            <svg class="animate-spin" style="width: 24px; height: 24px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            載入新聞中...
+                        </div>
+                    </div>
+                    <!-- 分頁控制項 -->
+                    <div id="news-pagination" class="news-pagination" style="display: none;">
+                        <button onclick="prevNewsPage()" id="news-prev-btn" class="pagination-btn" disabled>
+                            ← 上一頁
+                        </button>
+                        <span id="news-page-indicator" class="page-indicator">1/1</span>
+                        <button onclick="nextNewsPage()" id="news-next-btn" class="pagination-btn">
+                            下一頁 →
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -278,6 +389,37 @@
         <a href="{% url 'dashboard' %}" class="back-link">&larr; 返回儀表板</a>
     </div>
 </div>
+
+<!-- 財務警示 Modal -->
+{% if stock.alert_message %}
+<div id="alertModal" class="alert-modal-backdrop" style="display: none;">
+    <div class="alert-modal">
+        <div class="alert-modal-header">
+            <div class="alert-modal-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+            </div>
+            <h3>財務警示分析</h3>
+            <button onclick="closeAlertModal()" class="alert-modal-close">&times;</button>
+        </div>
+        <div class="alert-modal-body">
+            <p class="alert-modal-subtitle">{{ stock.ticker }} 有以下需要關注的財務指標：</p>
+            <div class="alert-items">
+                {% for line in stock.alert_message.splitlines %}
+                <div class="alert-item">
+                    {{ line }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="alert-modal-footer">
+            <p class="alert-disclaimer">以上分析僅供參考，不構成投資建議。請自行評估風險。</p>
+            <button onclick="closeAlertModal()" class="alert-modal-btn">了解</button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- ECharts -->
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.3.3/dist/echarts.min.js"></script>
@@ -314,19 +456,26 @@
                     }
                 }
 
-                // 2. Update News
+                // 2. Update News - 支援分頁與情緒 icon
                 if (newsContainer) {
                     if (data.news && data.news.length > 0) {
-                        const newsItemsHtml = data.news.map(item => `
-                            <li class="news-item">
-                                <a href="${item.link}" target="_blank" class="news-title">${item.title}</a>
-                                <div class="news-meta">
-                                    <span>${item.publisher || 'Unknown'}</span>
-                                    <span>${item.date || ''}</span>
-                                </div>
-                            </li>
-                        `).join('');
-                        newsContainer.innerHTML = `<ul class="news-list">${newsItemsHtml}</ul>`;
+                        // 儲存所有新聞用於分頁
+                        window.allNewsItems = data.news;
+                        window.newsCurrentPage = 1;
+                        window.newsPerPage = 10;
+                        
+                        // 更新新聞數量 badge
+                        const countBadge = document.getElementById('news-count');
+                        if (countBadge) countBadge.textContent = data.news.length + ' 則';
+                        
+                        // 顯示分頁控制項
+                        const pagination = document.getElementById('news-pagination');
+                        if (pagination && data.news.length > window.newsPerPage) {
+                            pagination.style.display = 'flex';
+                        }
+                        
+                        // 渲染第一頁
+                        renderNewsPage(1);
                     } else {
                         newsContainer.innerHTML = '<p class="no-news">暫無相關新聞</p>';
                     }
@@ -525,32 +674,277 @@
                     chartHistoricalDom.innerHTML = '<p class="no-data-text" style="text-align:center; padding-top:150px; color:#999;">暫無歷史走勢資料</p>';
                 }
 
+                // 5. 三大法人買賣超圖表
+                const institutionalDom = document.getElementById('chart-institutional');
+                if (institutionalDom) {
+                    // 容錯處理：檢查資料是否存在
+                    if (data.institutional_investors === null) {
+                        // 美股或不支援的市場
+                        institutionalDom.innerHTML = `
+                            <div style="display: flex; align-items: center; justify-content: center; 
+                                        height: 100%; color: #94a3b8; flex-direction: column; gap: 12px;">
+                                <svg style="width: 48px; height: 48px; opacity: 0.5;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span style="font-size: 0.95rem;">此功能僅支援台股</span>
+                            </div>`;
+                    } else if (!data.institutional_investors || data.institutional_investors.length === 0) {
+                        // 台股但無資料
+                        institutionalDom.innerHTML = `
+                            <p style="text-align: center; padding-top: 120px; color: #999;">
+                                暫無三大法人買賣超資料
+                            </p>`;
+                    } else {
+                        // 正常渲染圖表
+                        const instData = data.institutional_investors;
+                        const dates = instData.map(d => d.date);
+                        
+                        // 將股數轉換為張數（除以 1000）
+                        const foreignNet = instData.map(d => Math.round(d.foreign_net / 1000));
+                        const trustNet = instData.map(d => Math.round(d.trust_net / 1000));
+                        const dealerNet = instData.map(d => Math.round(d.dealer_net / 1000));
+                        
+                        const instChart = echarts.init(institutionalDom);
+                        const instOption = {
+                            tooltip: {
+                                trigger: 'axis',
+                                axisPointer: { type: 'shadow' },
+                                formatter: function(params) {
+                                    let res = params[0].name + '<br/>';
+                                    params.forEach(p => {
+                                        const val = p.value;
+                                        const color = val >= 0 ? '#e11d48' : '#059669';
+                                        const sign = val >= 0 ? '+' : '';
+                                        res += `<span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>` +
+                                               `${p.seriesName}: <span style="color:${color};font-weight:bold;">${sign}${val.toLocaleString()}</span> 張<br/>`;
+                                    });
+                                    return res;
+                                }
+                            },
+                            legend: {
+                                data: ['外資', '投信', '自營商'],
+                                top: 0
+                            },
+                            grid: {
+                                left: '3%',
+                                right: '4%',
+                                bottom: '15%',
+                                top: '15%',
+                                containLabel: true
+                            },
+                            xAxis: {
+                                type: 'category',
+                                data: dates,
+                                axisLabel: { 
+                                    rotate: 45, 
+                                    fontSize: 10,
+                                    interval: Math.floor(dates.length / 10) // 只顯示部分日期
+                                }
+                            },
+                            yAxis: {
+                                type: 'value',
+                                name: '張數',
+                                axisLabel: {
+                                    formatter: function(val) {
+                                        if (Math.abs(val) >= 10000) {
+                                            return (val / 10000).toFixed(1) + '萬';
+                                        }
+                                        return val;
+                                    }
+                                }
+                            },
+                            dataZoom: [
+                                { type: 'inside', start: 50, end: 100 },
+                                { type: 'slider', bottom: 0, start: 50, end: 100, height: 20 }
+                            ],
+                            series: [
+                                {
+                                    name: '外資',
+                                    type: 'bar',
+                                    data: foreignNet,
+                                    itemStyle: {
+                                        color: function(params) {
+                                            return params.value >= 0 ? '#ef4444' : '#22c55e';
+                                        }
+                                    }
+                                },
+                                {
+                                    name: '投信',
+                                    type: 'bar',
+                                    data: trustNet,
+                                    itemStyle: {
+                                        color: function(params) {
+                                            return params.value >= 0 ? '#f97316' : '#14b8a6';
+                                        }
+                                    }
+                                },
+                                {
+                                    name: '自營商',
+                                    type: 'bar',
+                                    data: dealerNet,
+                                    itemStyle: {
+                                        color: function(params) {
+                                            return params.value >= 0 ? '#a855f7' : '#06b6d4';
+                                        }
+                                    }
+                                }
+                            ]
+                        };
+                        instChart.setOption(instOption);
+                        window.addEventListener('resize', () => instChart.resize());
+                    }
+                }
+
             })
             .catch(err => {
                 console.error('Fetch Error:', err);
                 if (chartHistoricalDom) chartHistoricalDom.innerHTML = '<p style="text-align:center; padding-top:150px; color:red;">資料載入失敗，請稍後再試</p>';
             });
 
-        // Real-time Price Update (Separate Endpoint)
-        // Keep this separate to update price without reloading charts
-        function updatePrice() {
-            fetch('{% url "get_latest_price" stock.ticker %}')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) return;
-                    const priceEl = document.querySelector('.current-price');
-                    if (priceEl) {
-                        priceEl.textContent = data.price.toFixed(2);
-                        priceEl.style.color = '#00bfa5'; // Flash color?
-                    }
-                })
-                .catch(e => console.log(e));
+    }); // DOMContentLoaded 結束
+
+    // === 新聞分頁相關函數 ===
+    function renderNewsPage(page) {
+        const newsContainer = document.getElementById('news-wrapper');
+        if (!window.allNewsItems || !newsContainer) return;
+        
+        const start = (page - 1) * window.newsPerPage;
+        const end = start + window.newsPerPage;
+        const pageItems = window.allNewsItems.slice(start, end);
+        
+        const totalPages = Math.ceil(window.allNewsItems.length / window.newsPerPage);
+        window.newsCurrentPage = page;
+        
+        // 渲染新聞項目含情緒 icon
+        const newsItemsHtml = pageItems.map(item => {
+            let sentimentHtml = '';
+            if (item.sentiment === 'positive') {
+                sentimentHtml = '<span class="sentiment-icon sentiment-positive">😊</span>';
+            } else if (item.sentiment === 'negative') {
+                sentimentHtml = '<span class="sentiment-icon sentiment-negative">😟</span>';
+            } else {
+                sentimentHtml = '<span class="sentiment-icon sentiment-neutral">•</span>';
+            }
+            
+            return `
+                <li class="news-item">
+                    <a href="${item.link}" target="_blank" class="news-title">
+                        ${sentimentHtml}${item.title}
+                    </a>
+                    <div class="news-meta">
+                        <span>${item.publisher || 'Unknown'}</span>
+                        <span>${item.date || ''}</span>
+                    </div>
+                </li>
+            `;
+        }).join('');
+        
+        newsContainer.innerHTML = `<ul class="news-list">${newsItemsHtml}</ul>`;
+        
+        // 更新分頁按鈕狀態
+        const prevBtn = document.getElementById('news-prev-btn');
+        const nextBtn = document.getElementById('news-next-btn');
+        const indicator = document.getElementById('news-page-indicator');
+        
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= totalPages;
+        if (indicator) indicator.textContent = `${page}/${totalPages}`;
+    }
+    
+    function prevNewsPage() {
+        if (window.newsCurrentPage > 1) {
+            renderNewsPage(window.newsCurrentPage - 1);
+        }
+    }
+    
+    function nextNewsPage() {
+        const totalPages = Math.ceil(window.allNewsItems.length / window.newsPerPage);
+        if (window.newsCurrentPage < totalPages) {
+            renderNewsPage(window.newsCurrentPage + 1);
+        }
+    }
+
+    // === 卡片收放函數 ===
+    function toggleCard(headerElement) {
+        const card = headerElement.closest('.collapsible');
+        if (card) {
+            card.classList.toggle('collapsed');
+            // 儲存狀態到 localStorage
+            const cardId = card.id || card.className;
+            const isCollapsed = card.classList.contains('collapsed');
+            localStorage.setItem('card-' + cardId.replace(/\s+/g, '-'), isCollapsed);
+        }
+    }
+    
+    // 載入卡片收放狀態
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.collapsible').forEach(card => {
+            const cardId = card.id || card.className;
+            const savedState = localStorage.getItem('card-' + cardId.replace(/\s+/g, '-'));
+            if (savedState === 'true') {
+                card.classList.add('collapsed');
+            }
+        });
+    });
+
+    // === 財務警示 Modal 函數 ===
+    function openAlertModal() {
+        const modal = document.getElementById('alertModal');
+        if (modal) modal.style.display = 'flex';
+    }
+    
+    function closeAlertModal() {
+        const modal = document.getElementById('alertModal');
+        if (modal) modal.style.display = 'none';
+    }
+    
+    // 點擊背景關閉 Modal
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('alert-modal-backdrop')) {
+            closeAlertModal();
+        }
+    });
+    
+    // ESC 鍵關閉 Modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeAlertModal();
+    });
+
+    // Real-time Price Update (Separate Endpoint)
+    function updatePrice() {
+        const currentPriceEl = document.querySelector('.current-price');
+        // 加入一個簡單的閃爍效果
+        if (currentPriceEl) {
+             currentPriceEl.style.transition = 'color 0.5s';
         }
 
-        {% if is_trading %}
-        setInterval(updatePrice, 5000);
-        {% endif %}
-    });
+        fetch('{% url "get_latest_price" stock.ticker %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) return;
+                
+                if (currentPriceEl) {
+                    const oldPrice = parseFloat(currentPriceEl.textContent);
+                    const newPrice = parseFloat(data.price);
+                    
+                    if (newPrice !== oldPrice) {
+                        currentPriceEl.textContent = newPrice.toFixed(2);
+                        // Flash color based on change
+                        if (newPrice > oldPrice) {
+                            currentPriceEl.style.color = '#e11d48'; // Red
+                        } else if (newPrice < oldPrice) {
+                            currentPriceEl.style.color = '#059669'; // Green
+                        }
+                    }
+                }
+            })
+            .catch(e => console.log('Price update error:', e));
+    }
+
+    {% if is_trading %}
+    setInterval(updatePrice, 10000);
+    {% endif %}
 </script>
 
 <style>
@@ -784,8 +1178,6 @@
         display: none;
     }
 
-    /* Hidden as per request */
-
     /* Recent Data Table */
     .recent-table {
         width: 100%;
@@ -816,8 +1208,208 @@
         border-bottom: none;
     }
 
+    /* Modal Styles */
+    .alert-modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(5px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .alert-modal {
+        background: white;
+        width: 90%;
+        max-width: 500px;
+        border-radius: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        overflow: hidden;
+        animation: slideUp 0.3s ease;
+    }
+
+    .alert-modal-header {
+        background: #fef2f2;
+        padding: 20px;
+        text-align: center;
+        position: relative;
+        border-bottom: 1px solid #fee2e2;
+    }
+
+    .alert-modal-icon {
+        background: #fff;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        color: #ef4444;
+    }
+
+    .alert-modal-icon svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    .alert-modal-header h3 {
+        margin: 0;
+        color: #991b1b;
+        font-size: 1.5rem;
+    }
+
+    .alert-modal-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #991b1b;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .alert-modal-close:hover {
+        opacity: 1;
+    }
+
+    .alert-modal-body {
+        padding: 25px;
+    }
+
+    .alert-modal-subtitle {
+        color: #374151;
+        font-weight: 500;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+    }
+
+    .alert-items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .alert-item {
+        background: #fff1f2;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border-left: 4px solid #f87171;
+        color: #7f1d1d;
+        line-height: 1.5;
+        font-size: 0.95rem;
+    }
+
+    .alert-modal-footer {
+        padding: 20px;
+        background: #f9fafb;
+        border-top: 1px solid #f3f4f6;
+        text-align: center;
+    }
+
+    .alert-disclaimer {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin-bottom: 15px;
+    }
+
+    .alert-modal-btn {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 10px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .alert-modal-btn:hover {
+        background: #dc2626;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Collapsible Cards */
+    .collapsible {
+        transition: all 0.3s ease;
+    }
+    
+    .card-header {
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .collapse-icon {
+        transition: transform 0.3s ease;
+        font-size: 0.8em;
+        color: #999;
+    }
+    
+    .collapsible.collapsed .card-content {
+        display: none;
+    }
+    
+    .collapsible.collapsed .collapse-icon {
+        transform: rotate(-90deg);
+    }
+    
+    /* Alert Icon Button in Header */
+    .alert-icon-btn {
+        background: none;
+        border: none;
+        color: #f59e0b;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        animation: pulse 2s infinite;
+    }
+    
+    .alert-icon-btn:hover {
+        background-color: #fef3c7;
+        transform: scale(1.1);
+    }
+    
+    .alert-icon {
+        width: 24px;
+        height: 24px;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
     /* Mobile Responsive */
     @media (max-width: 768px) {
+
         .main-grid {
             grid-template-columns: 1fr;
             gap: 30px;

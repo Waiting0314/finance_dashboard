@@ -11,3 +11,7 @@ deep-translator
 FinMind
 tqdm
 feedparser
+html5lib
+# 情緒分析依賴（GPU 加速）
+torch
+transformers

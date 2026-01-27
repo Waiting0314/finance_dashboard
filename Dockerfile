@@ -1,31 +1,37 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+# 使用 NVIDIA CUDA 基礎映像支援 GPU
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 
-# Set environment variables
+# 設定環境變數
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Set work directory
+# 設定工作目錄
 WORKDIR /app
 
-# Install system dependencies (needed for some python packages like psycopg2)
+# 安裝 Python 3.10（Ubuntu 22.04 預設版本）和系統依賴
 RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
     libpq-dev \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python
 
-# Install python dependencies
+# 安裝 Python 依賴
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# 複製專案
 COPY . /app/
 
-# Collect static files
+# 收集靜態文件
 RUN python manage.py collectstatic --noinput
 
-# Expose port 8000
+# 開放埠號 8000
 EXPOSE 8000
 
-# Default command (will be overridden in docker-compose for worker)
+# 預設指令（docker-compose 會覆蓋 worker 的指令）
 CMD ["gunicorn", "stock_dashboard.wsgi:application", "--bind", "0.0.0.0:8000"]
